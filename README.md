@@ -17,6 +17,8 @@ Neographers' Toolkit is my Computer Science final year project at the University
 - Agent
     - Platform agnostically renders the specified font, acts as an input method editor.
 
+## Attributions
+- [react-desinger](https://github.com/react-designer/react-designer): used for editing of svgs
 
 ## Planned features
 - [ ] An easy to use online editor
