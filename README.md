@@ -1,8 +1,25 @@
 # Neographers' Toolkit
-NGTK let's you create your own writing system!
----
 
 Neographers' Toolkit is my Computer Science final year project at the University of Debrecen.
+
+## Setup
+
+**Requirements**:
+- zig compiler
+- nodejs
+
+To run the frontend application make sure to compile the agent.
+You can do so via this command 
+```bash
+zig build
+```
+
+Copy the resulting wasm from from `zig-out/bin` to `frontend/src/assets`.
+
+Run the frontend:
+```bash
+npm run dev
+```
 
 ## Architecture
 
@@ -19,6 +36,11 @@ Neographers' Toolkit is my Computer Science final year project at the University
 
 ## Attributions
 - [react-desinger](https://github.com/react-designer/react-designer): used for editing of svgs
+- [nothings/stb](https://github.com/nothings/stb): for their excellent single header libraries
+    - [TrueType](https://github.com/nothings/stb/blob/master/stb_truetype.h): the only thing that makes this project possible
+    - [Image write](https://github.com/nothings/stb/blob/master/stb_image_write.h)
+    - [Rect pack](https://github.com/nothings/stb/blob/master/stb_rect_pack.h)
+- [Glukfonts](https://www.glukfonts.pl): OpenFontLi­cense font DigitaltsLime for testing
 
 ## Planned features
 - [ ] An easy to use online editor
