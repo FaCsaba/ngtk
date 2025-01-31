@@ -58,17 +58,27 @@ pub const Font = struct {
     bounding_box: BoundingBox,
 };
 
+const RENDERED_TEXT_WIDTH: usize = 1920;
+const RENDERED_TEXT_HEIGHT: usize = 1080;
+
+// TODO: Introduce fallback font for when the user types something unexpected,
+//       Maybe allow chaning to their default ime.
 pub const Agent = struct {
     allocator: Allocator,
+    rendered_text: []u8,
     font: ?Font,
-    fallback_font: Font,
     font_size: f32 = 12,
 
     pub fn init(allocator: Allocator) !*Agent {
         const a = try allocator.create(Agent);
         a.allocator = allocator;
+        a.rendered_text = try allocator.alloc(u8, RENDERED_TEXT_WIDTH * RENDERED_TEXT_HEIGHT);
         a.font_size = 24;
         a.font = null;
+
+        for (a.rendered_text, 0..) |_, i| {
+            a.rendered_text[i] = 0;
+        }
         return a;
     }
 
@@ -83,6 +93,8 @@ pub const Agent = struct {
 
         const glyph_idxs = try self.allocator.alloc(i32, @intCast(num_chars));
         defer self.allocator.free(glyph_idxs);
+        // TODO: Find a better way to figure out packing size. Maybe check if we failed packing and try again with a bigger array size.
+        //       This might be why Firefox is failing.
         var x: i32 = 0;
         var i: i32 = 0;
         while (i < num_chars) {
@@ -185,17 +197,44 @@ pub const Agent = struct {
         self.allocator.free(font.atlas);
     }
 
-    // pub fn write_character(self: *Agent, str: []const u8) !void {
-    //     _ = self.font orelse return AgentError.FontNotFound;
-    //     const str_view = std.unicode.Utf8View.init(str) catch return AgentError.IncorrectUnicode;
-    //     var str_iter = str_view.iterator();
-    //     while (str_iter.nextCodepoint()) |codepoint| {
-    //         std.debug.print("{u} ", .{codepoint});
-    //     }
-    // }
+    pub fn render_text(self: *Agent, str: []const u8) !void {
+        const font = self.font orelse return AgentError.FontNotFound;
+        // var x: usize = 0;
+        const utf8_view = std.unicode.Utf8View.init(str) catch return AgentError.IncorrectUnicode;
+        var utf8_iter = utf8_view.iterator();
+        while (utf8_iter.nextCodepoint()) |char| {
+            std.debug.print("{u}\n", .{char});
+            const packed_char = font.packed_chars.get(char) orelse return AgentError.IncorrectUnicode; // TODO: this is false
+
+            const a_x_end = packed_char.packed_char.x1;
+            const a_y_end = packed_char.packed_char.y1;
+
+            var y: c_ushort = 0;
+            var a_y = packed_char.packed_char.y0;
+            while (a_y < a_y_end) {
+                var x: c_ushort = 0;
+                var a_x = packed_char.packed_char.x0;
+                while (a_x < a_x_end) {
+                    // TODO: Advance characters
+                    // TODO: Check if we are in bounds
+                    std.debug.print("{x:2} ", .{font.atlas[@intCast(a_y * font.atlas_size.x + a_x)]});
+                    self.rendered_text[y * RENDERED_TEXT_WIDTH + x] |= font.atlas[@intCast(a_y * font.atlas_size.x + a_x)];
+
+                    x += 1;
+                    a_x += 1;
+                }
+                std.debug.print("\n", .{});
+                y += 1;
+                a_y += 1;
+            }
+
+            return;
+        }
+    }
 
     pub fn deinit(self: *Agent) void {
         if (self.font) |font| self.unload_font(font);
+        self.allocator.free(self.rendered_text);
         self.allocator.destroy(self);
     }
 };
@@ -211,6 +250,11 @@ test "Agent" {
 
     const font = try agent.load_font(font_data);
 
-    const img_size = font.atlas_size;
-    _ = stbi_write_png("font.png", img_size.x, img_size.y, 1, font.atlas.ptr, 0);
+    const atlas_size = font.atlas_size;
+    _ = stbi_write_png("font.png", atlas_size.x, atlas_size.y, 1, font.atlas.ptr, 0);
+
+    const text = "pákó";
+    try agent.render_text(text);
+
+    _ = stbi_write_png("text.png", RENDERED_TEXT_WIDTH, RENDERED_TEXT_HEIGHT, 1, agent.rendered_text.ptr, 0);
 }
