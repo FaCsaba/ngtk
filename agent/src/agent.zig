@@ -20,6 +20,7 @@ const get_font_bounding_box = tt.stbtt_GetFontBoundingBox;
 const find_glyph_index = tt.stbtt_FindGlyphIndex;
 const get_glyph_box = tt.stbtt_GetGlyphBox;
 const pack_set_skip_missing_codepoints = tt.stbtt_PackSetSkipMissingCodepoints;
+const get_glyph_kern_advance = tt.stbtt_GetGlyphKernAdvance;
 
 const AgentError = error{
     InitFontFailed,
@@ -53,13 +54,12 @@ pub const Font = struct {
     scale: f32,
     ascent: i32,
     descent: i32,
-    baseline: i32,
     vert_adv: i32,
     bounding_box: BoundingBox,
 };
 
-const RENDERED_TEXT_WIDTH: usize = 1920;
-const RENDERED_TEXT_HEIGHT: usize = 1080;
+const RENDERED_TEXT_WIDTH: i32 = 420;
+const RENDERED_TEXT_HEIGHT: i32 = 420;
 
 // TODO: Introduce fallback font for when the user types something unexpected,
 //       Maybe allow chaning to their default ime.
@@ -104,17 +104,19 @@ pub const Agent = struct {
             var end_x: c_int = 0;
             const got_glyph_box = get_glyph_box(&font_info, glyph_index, &start_x, 0, &end_x, 0);
             if (got_glyph_box == 1 and glyph_index != 0) {
-                x += @intFromFloat(@round(@as(f32, @floatFromInt(end_x - start_x)) * scale * 1.5));
+                x += @intFromFloat(@round(@as(f32, @floatFromInt(end_x - start_x)) * scale * 2));
             }
             i += 1;
         }
+
+        std.debug.print("glyphs idxs: {d}", .{glyph_idxs});
 
         var bounding_box: BoundingBox = .{};
         get_font_bounding_box(&font_info, &bounding_box.start.x, &bounding_box.start.y, &bounding_box.end.x, &bounding_box.end.y);
 
         const char_size = Point{
-            .x = x,
-            .y = @intFromFloat(@round(@as(f32, @floatFromInt(bounding_box.end.y - bounding_box.start.y)) * scale)),
+            .x = 1024, //x,
+            .y = 1024, //@intFromFloat(@round(@as(f32, @floatFromInt(bounding_box.end.y - bounding_box.start.y)) * scale * 2)),
         };
         const atlas_size = Point{ .x = char_size.x, .y = char_size.y };
 
@@ -122,7 +124,7 @@ pub const Agent = struct {
         const packed_chars_array = try self.allocator.alloc(PackedChar, @intCast(num_chars));
         defer self.allocator.free(packed_chars_array);
         const atlas = try self.allocator.alloc(u8, @intCast(atlas_size.x * atlas_size.y));
-        pack_set_skip_missing_codepoints(&ctx, 1);
+        pack_set_skip_missing_codepoints(&ctx, 0);
         if (pack_begin(
             &ctx,
             atlas.ptr,
@@ -177,7 +179,6 @@ pub const Agent = struct {
             .scale = scale,
             .ascent = ascent,
             .descent = descent,
-            .baseline = @intFromFloat(@round(@as(f32, @floatFromInt(ascent)) * scale)),
             .vert_adv = ascent - descent + line_gap,
         };
 
@@ -199,36 +200,57 @@ pub const Agent = struct {
 
     pub fn render_text(self: *Agent, str: []const u8) !void {
         const font = self.font orelse return AgentError.FontNotFound;
-        // var x: usize = 0;
+        const ascent = font.ascent;
+        const scale = font.scale;
+        const baseline = @as(f32, @floatFromInt(ascent)) * scale;
+
+        var xpos: f32 = 10;
+        const ypos: f32 = 10;
+
         const utf8_view = std.unicode.Utf8View.init(str) catch return AgentError.IncorrectUnicode;
         var utf8_iter = utf8_view.iterator();
         while (utf8_iter.nextCodepoint()) |char| {
             std.debug.print("{u}\n", .{char});
+
             const packed_char = font.packed_chars.get(char) orelse return AgentError.IncorrectUnicode; // TODO: this is false
 
-            const a_x_end = packed_char.packed_char.x1;
-            const a_y_end = packed_char.packed_char.y1;
+            const xadv: f32 = packed_char.packed_char.xadvance;
+            const xoff: f32 = packed_char.packed_char.xoff;
+            const yoff: f32 = packed_char.packed_char.yoff;
 
-            var y: c_ushort = 0;
-            var a_y = packed_char.packed_char.y0;
-            while (a_y < a_y_end) {
-                var x: c_ushort = 0;
-                var a_x = packed_char.packed_char.x0;
-                while (a_x < a_x_end) {
-                    // TODO: Advance characters
+            std.debug.print("xadv: {}, xoff: {}, yoff: {}\n", .{ xadv, xoff, yoff });
+            std.debug.print("glyph idx: {}\n", .{packed_char.glyph_index});
+
+            const xatlas_end = packed_char.packed_char.x1;
+            const yatlas_end = packed_char.packed_char.y1;
+
+            var yrender: i32 = @intFromFloat(ypos + baseline + yoff);
+            var yatlas = packed_char.packed_char.y0;
+            while (yatlas < yatlas_end) {
+                var xrender: i32 = @intFromFloat(xpos + xoff);
+                var xatlas = packed_char.packed_char.x0;
+                while (xatlas < xatlas_end) {
                     // TODO: Check if we are in bounds
-                    std.debug.print("{x:2} ", .{font.atlas[@intCast(a_y * font.atlas_size.x + a_x)]});
-                    self.rendered_text[y * RENDERED_TEXT_WIDTH + x] |= font.atlas[@intCast(a_y * font.atlas_size.x + a_x)];
+                    // TODO: Figure out why white spaces are also displayed with a missing glyph character.
+                    std.debug.print("{x:2} ", .{font.atlas[@intCast(yatlas * font.atlas_size.x + xatlas)]});
+                    self.rendered_text[@intCast(yrender * RENDERED_TEXT_WIDTH + xrender)] |= font.atlas[@intCast(yatlas * font.atlas_size.x + xatlas)];
 
-                    x += 1;
-                    a_x += 1;
+                    xrender += 1;
+                    xatlas += 1;
                 }
                 std.debug.print("\n", .{});
-                y += 1;
-                a_y += 1;
+                yrender += 1;
+                yatlas += 1;
             }
 
-            return;
+            xpos += xadv;
+            const next_char_maybe = utf8_iter.peek(1);
+            if (next_char_maybe.len > 0) {
+                const next_char = std.unicode.utf8Decode(next_char_maybe) catch return AgentError.IncorrectUnicode;
+                const kern = @as(f32, @floatFromInt(get_glyph_kern_advance(&font.font_info, char, next_char))) * scale;
+                std.debug.print("kern: {}\n", .{kern});
+                xpos += kern;
+            }
         }
     }
 
@@ -253,7 +275,7 @@ test "Agent" {
     const atlas_size = font.atlas_size;
     _ = stbi_write_png("font.png", atlas_size.x, atlas_size.y, 1, font.atlas.ptr, 0);
 
-    const text = "pákó";
+    const text = "Víztükör fúrógép?";
     try agent.render_text(text);
 
     _ = stbi_write_png("text.png", RENDERED_TEXT_WIDTH, RENDERED_TEXT_HEIGHT, 1, agent.rendered_text.ptr, 0);
