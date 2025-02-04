@@ -63,6 +63,7 @@ const RENDERED_TEXT_HEIGHT: i32 = 420;
 
 // TODO: Introduce fallback font for when the user types something unexpected,
 //       Maybe allow chaning to their default ime.
+// TODO: Find a way to render svgs with color.
 pub const Agent = struct {
     allocator: Allocator,
     rendered_text: []u8,
@@ -221,26 +222,29 @@ pub const Agent = struct {
             std.debug.print("xadv: {}, xoff: {}, yoff: {}\n", .{ xadv, xoff, yoff });
             std.debug.print("glyph idx: {}\n", .{packed_char.glyph_index});
 
-            const xatlas_end = packed_char.packed_char.x1;
-            const yatlas_end = packed_char.packed_char.y1;
+            // HACK: I am unable to verify whether whitespaces are supposed to have some data in font files to identify
+            //       them as such, or are text rendering engines in charge of knowing that.
+            if (!isWhitespace(char)) {
+                const xatlas_end = packed_char.packed_char.x1;
+                const yatlas_end = packed_char.packed_char.y1;
 
-            var yrender: i32 = @intFromFloat(ypos + baseline + yoff);
-            var yatlas = packed_char.packed_char.y0;
-            while (yatlas < yatlas_end) {
-                var xrender: i32 = @intFromFloat(xpos + xoff);
-                var xatlas = packed_char.packed_char.x0;
-                while (xatlas < xatlas_end) {
-                    // TODO: Check if we are in bounds
-                    // TODO: Figure out why white spaces are also displayed with a missing glyph character.
-                    std.debug.print("{x:2} ", .{font.atlas[@intCast(yatlas * font.atlas_size.x + xatlas)]});
-                    self.rendered_text[@intCast(yrender * RENDERED_TEXT_WIDTH + xrender)] |= font.atlas[@intCast(yatlas * font.atlas_size.x + xatlas)];
+                var yrender: i32 = @intFromFloat(ypos + baseline + yoff);
+                var yatlas = packed_char.packed_char.y0;
+                while (yatlas < yatlas_end) {
+                    var xrender: i32 = @intFromFloat(xpos + xoff);
+                    var xatlas = packed_char.packed_char.x0;
+                    while (xatlas < xatlas_end) {
+                        // TODO: Check if we are in bounds
+                        std.debug.print("{x:2} ", .{font.atlas[@intCast(yatlas * font.atlas_size.x + xatlas)]});
+                        self.rendered_text[@intCast(yrender * RENDERED_TEXT_WIDTH + xrender)] |= font.atlas[@intCast(yatlas * font.atlas_size.x + xatlas)];
 
-                    xrender += 1;
-                    xatlas += 1;
+                        xrender += 1;
+                        xatlas += 1;
+                    }
+                    std.debug.print("\n", .{});
+                    yrender += 1;
+                    yatlas += 1;
                 }
-                std.debug.print("\n", .{});
-                yrender += 1;
-                yatlas += 1;
             }
 
             xpos += xadv;
@@ -260,6 +264,23 @@ pub const Agent = struct {
         self.allocator.destroy(self);
     }
 };
+
+// TODO: Not an exhaustive list. https://en.wikipedia.org/wiki/Whitespace_character
+const whitespace = [_]u21{
+    ' ',
+    '\t',
+    '\n',
+    '\r',
+    std.ascii.control_code.vt,
+    std.ascii.control_code.ff,
+};
+
+// Stolen directly from std.ascii.isWhitespace
+fn isWhitespace(codepoint: u21) bool {
+    return for (whitespace) |other| {
+        if (codepoint == other) break true;
+    } else false;
+}
 
 test "Agent" {
     const stbi_write_png = @cImport(@cInclude("stb/stb_image_write.h")).stbi_write_png;
