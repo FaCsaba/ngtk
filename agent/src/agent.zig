@@ -219,6 +219,8 @@ pub const Agent = struct {
             const xoff: f32 = packed_char.packed_char.xoff;
             const yoff: f32 = packed_char.packed_char.yoff;
 
+            // TODO: When the character wouldn't fit place it in a new line.
+
             std.debug.print("xadv: {}, xoff: {}, yoff: {}\n", .{ xadv, xoff, yoff });
             std.debug.print("glyph idx: {}\n", .{packed_char.glyph_index});
 
@@ -231,10 +233,11 @@ pub const Agent = struct {
                 var yrender: i32 = @intFromFloat(ypos + baseline + yoff);
                 var yatlas = packed_char.packed_char.y0;
                 while (yatlas < yatlas_end) {
+                    if (yrender >= RENDERED_TEXT_HEIGHT) break;
                     var xrender: i32 = @intFromFloat(xpos + xoff);
                     var xatlas = packed_char.packed_char.x0;
                     while (xatlas < xatlas_end) {
-                        // TODO: Check if we are in bounds
+                        if (xrender >= RENDERED_TEXT_WIDTH) break;
                         std.debug.print("{x:2} ", .{font.atlas[@intCast(yatlas * font.atlas_size.x + xatlas)]});
                         self.rendered_text[@intCast(yrender * RENDERED_TEXT_WIDTH + xrender)] |= font.atlas[@intCast(yatlas * font.atlas_size.x + xatlas)];
 
