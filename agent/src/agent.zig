@@ -250,6 +250,8 @@ pub const Agent = struct {
                 }
             }
 
+            // TODO: Support newline character.
+
             xpos += xadv;
             const next_char_maybe = utf8_iter.peek(1);
             if (next_char_maybe.len > 0) {
