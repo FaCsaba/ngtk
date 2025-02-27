@@ -51,3 +51,8 @@ pub export fn agent_get_font_atlas(agent: *Agent) [*c]u8 {
     const font = agent.font orelse _panic("Failed to get font, no font loaded yet");
     return font.atlas.ptr;
 }
+
+pub export fn agent_render_text(agent: *Agent, str: [*c]u8, len: usize) [*c]u8 {
+    agent.render_text(str[0..len]) catch |err| std.debug.panic("Failed to render text: {s}\x00", .{@errorName(err)});
+    return agent.rendered_text.ptr;
+}
