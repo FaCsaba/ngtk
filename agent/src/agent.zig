@@ -110,7 +110,7 @@ pub const Agent = struct {
             i += 1;
         }
 
-        std.debug.print("glyphs idxs: {d}", .{glyph_idxs});
+        // std.debug.print("glyphs idxs: {d}", .{glyph_idxs});
 
         var bounding_box: BoundingBox = .{};
         get_font_bounding_box(&font_info, &bounding_box.start.x, &bounding_box.start.y, &bounding_box.end.x, &bounding_box.end.y);
@@ -200,6 +200,8 @@ pub const Agent = struct {
     }
 
     pub fn render_text(self: *Agent, str: []const u8) !void {
+        self.clear_rendered_text();
+
         const font = self.font orelse return AgentError.FontNotFound;
         const ascent = font.ascent;
         const scale = font.scale;
@@ -211,7 +213,7 @@ pub const Agent = struct {
         const utf8_view = std.unicode.Utf8View.init(str) catch return AgentError.IncorrectUnicode;
         var utf8_iter = utf8_view.iterator();
         while (utf8_iter.nextCodepoint()) |char| {
-            std.debug.print("{u}\n", .{char});
+            // std.debug.print("{u}\n", .{char});
 
             const packed_char = font.packed_chars.get(char) orelse return AgentError.IncorrectUnicode; // TODO: this is false
 
@@ -221,8 +223,8 @@ pub const Agent = struct {
 
             // TODO: When the character wouldn't fit place it in a new line.
 
-            std.debug.print("xadv: {}, xoff: {}, yoff: {}\n", .{ xadv, xoff, yoff });
-            std.debug.print("glyph idx: {}\n", .{packed_char.glyph_index});
+            // std.debug.print("xadv: {}, xoff: {}, yoff: {}\n", .{ xadv, xoff, yoff });
+            // std.debug.print("glyph idx: {}\n", .{packed_char.glyph_index});
 
             // HACK: I am unable to verify whether whitespaces are supposed to have some data in font files to identify
             //       them as such, or are text rendering engines in charge of knowing that.
@@ -244,7 +246,7 @@ pub const Agent = struct {
                         xrender += 1;
                         xatlas += 1;
                     }
-                    std.debug.print("\n", .{});
+                    // std.debug.print("\n", .{});
                     yrender += 1;
                     yatlas += 1;
                 }
@@ -257,7 +259,7 @@ pub const Agent = struct {
             if (next_char_maybe.len > 0) {
                 const next_char = std.unicode.utf8Decode(next_char_maybe) catch return AgentError.IncorrectUnicode;
                 const kern = @as(f32, @floatFromInt(get_glyph_kern_advance(&font.font_info, char, next_char))) * scale;
-                std.debug.print("kern: {}\n", .{kern});
+                // std.debug.print("kern: {}\n", .{kern});
                 xpos += kern;
             }
         }
@@ -267,6 +269,14 @@ pub const Agent = struct {
         if (self.font) |font| self.unload_font(font);
         self.allocator.free(self.rendered_text);
         self.allocator.destroy(self);
+    }
+
+    fn clear_rendered_text(self: *Agent) void {
+        var i: usize = 0;
+        while (i < RENDERED_TEXT_WIDTH * RENDERED_TEXT_HEIGHT) {
+            self.rendered_text[i] = 0;
+            i += 1;
+        }
     }
 };
 
