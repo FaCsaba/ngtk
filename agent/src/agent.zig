@@ -70,6 +70,7 @@ const DEFAULT_FONT_SIZE: f32 = 24;
 // TODO: Find a way to render svgs with color.
 pub const Agent = struct {
     allocator: Allocator,
+    text: ArrayList(u21),
     rendered_text: []u8,
     font: ?Font,
     font_size: f32,
@@ -77,6 +78,7 @@ pub const Agent = struct {
     pub fn init(allocator: Allocator) !*Agent {
         const a = try allocator.create(Agent);
         a.allocator = allocator;
+        a.text = ArrayList(u21).init(allocator);
         a.rendered_text = try allocator.alloc(u8, RENDERED_TEXT_WIDTH * RENDERED_TEXT_HEIGHT);
         a.font = null;
         a.font_size = DEFAULT_FONT_SIZE;
@@ -186,7 +188,7 @@ pub const Agent = struct {
         self.allocator.free(font.atlas);
     }
 
-    pub fn render_text(self: *Agent, str: []const u8) !void {
+    pub fn render_text(self: *Agent) !void {
         self.clear_rendered_text();
 
         const font = self.font orelse return AgentError.FontNotFound;
@@ -197,9 +199,9 @@ pub const Agent = struct {
         var xpos: f32 = 10;
         const ypos: f32 = 10;
 
-        const utf8_view = std.unicode.Utf8View.init(str) catch return AgentError.IncorrectUnicode;
-        var utf8_iter = utf8_view.iterator();
-        while (utf8_iter.nextCodepoint()) |char| {
+        var i: usize = 0;
+        while (i < self.text.items.len) {
+            const char = self.text.items[i];
             const packed_char = font.packed_chars.get(char) orelse return AgentError.CharacterNotFound; // TODO: Probably should just render the no character symbol at 0
 
             const xadv: f32 = packed_char.packed_char.xadvance;
@@ -235,17 +237,35 @@ pub const Agent = struct {
             // TODO: Support newline character.
 
             xpos += xadv;
-            const next_char_maybe = utf8_iter.peek(1);
-            if (next_char_maybe.len > 0) {
-                const next_char = std.unicode.utf8Decode(next_char_maybe) catch return AgentError.IncorrectUnicode;
+            const next_char_maybe: ?u21 = if (i + 1 < self.text.items.len) self.text.items[i + 1] else null;
+            if (next_char_maybe) |next_char| {
                 const kern = @as(f32, @floatFromInt(get_glyph_kern_advance(&font.font_info, char, next_char))) * scale;
                 xpos += kern;
             }
+            i += 1;
+        }
+    }
+
+    pub fn remove_char(self: *Agent) void {
+        _ = self.text.popOrNull();
+    }
+
+    // TODO: Once the system for character mapping is in place, use that instead of adding characters
+    pub fn add_char(self: *Agent, char: u21) !void {
+        try self.text.append(char);
+    }
+
+    pub fn add_text(self: *Agent, str: []const u8) !void {
+        const utf8_view = std.unicode.Utf8View.init(str) catch return AgentError.IncorrectUnicode;
+        var utf8_iter = utf8_view.iterator();
+        while (utf8_iter.nextCodepoint()) |char| {
+            try self.add_char(char);
         }
     }
 
     pub fn deinit(self: *Agent) void {
         if (self.font) |font| self.unload_font(font);
+        self.text.deinit();
         self.allocator.free(self.rendered_text);
         self.allocator.destroy(self);
     }
@@ -291,7 +311,8 @@ test "Agent" {
     _ = stbi_write_png("font.png", atlas_size.x, atlas_size.y, 1, font.atlas.ptr, 0);
 
     const text = "Víztükör fúrógép őr?";
-    try agent.render_text(text);
+    try agent.add_text(text);
+    try agent.render_text();
 
     _ = stbi_write_png("text.png", RENDERED_TEXT_WIDTH, RENDERED_TEXT_HEIGHT, 1, agent.rendered_text.ptr, 0);
 }
