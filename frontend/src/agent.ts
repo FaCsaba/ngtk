@@ -13,8 +13,9 @@ export interface AgentExports {
     agent_deinit: () => void;
     agent_load_font: (agent: ptr, buf: ptr, buf_len: number) => void;
     agent_get_font_atlas: (agent: ptr) => ptr;
-    agent_render_text: (agent: ptr, str: ptr, str_len: number) => ptr;
-    agent_clear_text: (agent: ptr) => void;
+    agent_add_char: (agent: ptr, char: number) => void;
+    agent_remove_char: (agent: ptr) => void;
+    agent_render_text: (agent: ptr) => ptr;
     malloc: (size: number) => ptr;
     free: (buf: ptr) => void;
     memory: WebAssembly.Memory;
@@ -64,22 +65,19 @@ export class AgentWasm {
         this.exports.agent_deinit();
     }
 
-    public renderText(text: string): void {
-        const textU8 = new TextEncoder().encode(text);
-        if (textU8.length === 0) {
-            this.ctx?.clearRect(0, 0, AgentWasm.RENDERED_TEXT_WIDTH, AgentWasm.RENDERED_TEXT_HEIGHT)
-            return;
+    public addChar(char: string): void {
+        if (char.length != 1) {
+            if (char == "Backspace") this.exports.agent_remove_char(this.agentPtr);
+        } else {
+            const textU8 = new TextEncoder().encode(char);
+            this.exports.agent_add_char(this.agentPtr, textU8[0]);
         }
+        this.renderText();
+    }
 
-        const textAlloc = this.malloc(textU8.length);
-
-        const textView = new Uint8Array(this.exports.memory.buffer, textAlloc.ptr, textAlloc.len);
-        textView.set(textU8);
-
-
-        const imgPtr = this.exports.agent_render_text(this.agentPtr, textAlloc.ptr, textAlloc.len);
-        this.free(textAlloc.ptr);
-
+    public renderText(): void {
+        this.ctx?.clearRect(0, 0, AgentWasm.RENDERED_TEXT_WIDTH, AgentWasm.RENDERED_TEXT_HEIGHT)
+        const imgPtr = this.exports.agent_render_text(this.agentPtr);
         const img = this.imgFromAlpha(imgPtr);
         this.ctx?.putImageData(img, 0, 0);
     }

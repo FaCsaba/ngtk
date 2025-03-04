@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Designer, Text, Rect } from "./react-designer";
 import { AgentWasm } from "./agent";
-import { NeographyPreviewer } from "./components/NeographyPreviewer";
+import { NeographyPreviewer } from "./components/neography-preview.component";
 
 export default function App({ agent }: { agent: AgentWasm }) {
   const [objects, setObjects] = useState([]);
