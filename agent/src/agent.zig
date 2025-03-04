@@ -81,13 +81,10 @@ pub const Agent = struct {
         a.font = null;
         a.font_size = DEFAULT_FONT_SIZE;
 
-        for (a.rendered_text, 0..) |_, i| {
-            a.rendered_text[i] = 0;
-        }
         return a;
     }
 
-    fn load_font_adv(self: *Agent, buf: []const u8, unicode_start: i32, num_chars: i32) !Font {
+    fn load_font_adv(self: *Agent, buf: []const u8, unicode_start: u32, num_chars: u32) !Font {
         var font_info: FontInfo = undefined;
 
         const font_buf = try self.allocator.dupe(u8, buf);
@@ -96,29 +93,14 @@ pub const Agent = struct {
             return AgentError.InitFontFailed;
         }
 
-        const scale = scale_for_mapping_em_to_pixels(&font_info, self.font_size);
-
-        const glyph_idxs = try self.allocator.alloc(i32, @intCast(num_chars));
-        defer self.allocator.free(glyph_idxs);
-        // TODO: Find a better way to figure out packing size. Maybe check if we failed packing and try again with a bigger array size.
-        //       This might be why Firefox is failing.
-        var x: i32 = 0;
-        var i: i32 = 0;
-        while (i < num_chars) {
-            const glyph_index = find_glyph_index(&font_info, unicode_start + i);
-            glyph_idxs[@intCast(i)] = glyph_index;
-            var start_x: c_int = 0;
-            var end_x: c_int = 0;
-            const got_glyph_box = get_glyph_box(&font_info, glyph_index, &start_x, 0, &end_x, 0);
-            if (got_glyph_box == 1 and glyph_index != 0) {
-                x += @intFromFloat(@round(@as(f32, @floatFromInt(end_x - start_x)) * scale * 2));
-            }
-            i += 1;
-        }
+        const font_size = self.font_size;
+        const scale = scale_for_mapping_em_to_pixels(&font_info, font_size);
 
         var bounding_box: BoundingBox = .{};
         get_font_bounding_box(&font_info, &bounding_box.start.x, &bounding_box.start.y, &bounding_box.end.x, &bounding_box.end.y);
 
+        // TODO: Find a better way to figure out packing size. Maybe check if we failed packing and try again with a bigger array size.
+        //       This might be why Firefox is failing.
         // TODO: Atlas size should be based on number of characters and the fontsize somehow
         const atlas_size = Point{ .x = 1024, .y = 1024 };
 
@@ -139,8 +121,8 @@ pub const Agent = struct {
 
         var range = PackRange{
             .font_size = point_size(self.font_size),
-            .first_unicode_codepoint_in_range = unicode_start,
-            .num_chars = num_chars,
+            .first_unicode_codepoint_in_range = @intCast(unicode_start),
+            .num_chars = @intCast(num_chars),
             .chardata_for_range = packed_chars_array.ptr,
         };
         if (pack_font_ranges(
@@ -154,13 +136,14 @@ pub const Agent = struct {
         pack_end(&ctx);
 
         var packed_chars = HashMap(u21, ExtPackedChar).init(self.allocator);
-        i = 0;
+        var i: u32 = 0;
         while (i < packed_chars_array.len) {
+            const glyph_index = find_glyph_index(&font_info, @intCast(unicode_start + i));
             const codepoint = unicode_start + i;
             const packed_char = packed_chars_array[@intCast(i)];
             const packed_char_ext: ExtPackedChar = .{
                 .codepoint = @intCast(codepoint),
-                .glyph_index = glyph_idxs[@intCast(i)],
+                .glyph_index = glyph_index,
                 .packed_char = packed_char,
             };
             try packed_chars.put(@intCast(codepoint), packed_char_ext);
@@ -175,7 +158,7 @@ pub const Agent = struct {
         const font = Font{
             .font_info = font_info,
             .font_buf = font_buf,
-            .font_size = self.font_size,
+            .font_size = font_size,
             .packed_chars = packed_chars,
             .atlas = atlas,
             .atlas_size = atlas_size,
