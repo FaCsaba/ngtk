@@ -69,8 +69,7 @@ export class AgentWasm {
         if (char.length != 1) {
             if (char == "Backspace") this.exports.agent_remove_char(this.agentPtr);
         } else {
-            const textU8 = new TextEncoder().encode(char);
-            this.exports.agent_add_char(this.agentPtr, textU8[0]);
+            this.exports.agent_add_char(this.agentPtr, char.codePointAt(0)!);
         }
         this.renderText();
     }
