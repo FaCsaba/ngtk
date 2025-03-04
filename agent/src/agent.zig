@@ -50,6 +50,7 @@ const ExtPackedChar = struct {
 pub const Font = struct {
     font_info: FontInfo,
     font_buf: []u8,
+    font_size: f32,
     packed_chars: HashMap(u21, ExtPackedChar),
     atlas: []u8,
     atlas_size: Point,
@@ -62,6 +63,7 @@ pub const Font = struct {
 
 const RENDERED_TEXT_WIDTH: i32 = 420;
 const RENDERED_TEXT_HEIGHT: i32 = 420;
+const DEFAULT_FONT_SIZE: f32 = 24;
 
 // TODO: Introduce fallback font for when the user types something unexpected,
 //       Maybe allow chaning to their default ime.
@@ -70,14 +72,14 @@ pub const Agent = struct {
     allocator: Allocator,
     rendered_text: []u8,
     font: ?Font,
-    font_size: f32 = 12,
+    font_size: f32,
 
     pub fn init(allocator: Allocator) !*Agent {
         const a = try allocator.create(Agent);
         a.allocator = allocator;
         a.rendered_text = try allocator.alloc(u8, RENDERED_TEXT_WIDTH * RENDERED_TEXT_HEIGHT);
-        a.font_size = 24;
         a.font = null;
+        a.font_size = DEFAULT_FONT_SIZE;
 
         for (a.rendered_text, 0..) |_, i| {
             a.rendered_text[i] = 0;
@@ -173,6 +175,7 @@ pub const Agent = struct {
         const font = Font{
             .font_info = font_info,
             .font_buf = font_buf,
+            .font_size = self.font_size,
             .packed_chars = packed_chars,
             .atlas = atlas,
             .atlas_size = atlas_size,
