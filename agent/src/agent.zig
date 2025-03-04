@@ -270,7 +270,7 @@ pub const Agent = struct {
         self.allocator.destroy(self);
     }
 
-    pub fn clear_rendered_text(self: *Agent) void {
+    fn clear_rendered_text(self: *Agent) void {
         var i: usize = 0;
         while (i < RENDERED_TEXT_WIDTH * RENDERED_TEXT_HEIGHT) {
             self.rendered_text[i] = 0;

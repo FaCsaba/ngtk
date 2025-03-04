@@ -70,7 +70,3 @@ pub export fn agent_render_text(agent: *Agent) [*c]u8 {
     agent.render_text() catch |err| std.debug.panic("Failed to render text: {s}\x00", .{@errorName(err)});
     return agent.rendered_text.ptr;
 }
-
-pub export fn agent_clear_text(agent: *Agent) void {
-    agent.clear_rendered_text();
-}
