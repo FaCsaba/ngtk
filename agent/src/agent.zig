@@ -49,6 +49,7 @@ const ExtPackedChar = struct {
 
 pub const Font = struct {
     font_info: FontInfo,
+    font_buf: []u8,
     packed_chars: HashMap(u21, ExtPackedChar),
     atlas: []u8,
     atlas_size: Point,
@@ -86,6 +87,8 @@ pub const Agent = struct {
 
     fn load_font_adv(self: *Agent, buf: []const u8, unicode_start: i32, num_chars: i32) !Font {
         var font_info: FontInfo = undefined;
+
+        const font_buf = try self.allocator.dupe(u8, buf);
 
         if (init_font(&font_info, buf.ptr, 0) == 0) {
             return AgentError.InitFontFailed;
@@ -169,6 +172,7 @@ pub const Agent = struct {
 
         const font = Font{
             .font_info = font_info,
+            .font_buf = font_buf,
             .packed_chars = packed_chars,
             .atlas = atlas,
             .atlas_size = atlas_size,
@@ -192,6 +196,7 @@ pub const Agent = struct {
     pub fn unload_font(self: *Agent, font: Font) void {
         var chars = font.packed_chars;
         chars.deinit();
+        self.allocator.free(font.font_buf);
         self.allocator.free(font.atlas);
     }
 
