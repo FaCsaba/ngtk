@@ -4,10 +4,10 @@ import './index.css'
 import App from './App.tsx'
 import { AgentWasm } from './agent.ts';
 
-const a = await AgentWasm.new();
+const agent = await AgentWasm.new();
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <App />
+    <App agent={agent} />
   </StrictMode>,
 )
