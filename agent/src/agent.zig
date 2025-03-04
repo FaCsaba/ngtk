@@ -28,6 +28,7 @@ const AgentError = error{
     Packing,
     BitmapNotLoaded,
     IncorrectUnicode,
+    CharacterNotFound,
 };
 
 const Point = struct {
@@ -110,16 +111,11 @@ pub const Agent = struct {
             i += 1;
         }
 
-        // std.debug.print("glyphs idxs: {d}", .{glyph_idxs});
-
         var bounding_box: BoundingBox = .{};
         get_font_bounding_box(&font_info, &bounding_box.start.x, &bounding_box.start.y, &bounding_box.end.x, &bounding_box.end.y);
 
-        const char_size = Point{
-            .x = 1024, //x,
-            .y = 1024, //@intFromFloat(@round(@as(f32, @floatFromInt(bounding_box.end.y - bounding_box.start.y)) * scale * 2)),
-        };
-        const atlas_size = Point{ .x = char_size.x, .y = char_size.y };
+        // TODO: Atlas size should be based on number of characters and the fontsize somehow
+        const atlas_size = Point{ .x = 1024, .y = 1024 };
 
         var ctx: PackContext = undefined;
         const packed_chars_array = try self.allocator.alloc(PackedChar, @intCast(num_chars));
@@ -188,7 +184,7 @@ pub const Agent = struct {
 
     pub fn load_font(self: *Agent, buf: []const u8) !Font {
         if (self.font) |font| self.unload_font(font);
-        const font = try self.load_font_adv(buf, 1, 256);
+        const font = try self.load_font_adv(buf, 1, 1024);
         self.font = font;
         return font;
     }
@@ -213,18 +209,13 @@ pub const Agent = struct {
         const utf8_view = std.unicode.Utf8View.init(str) catch return AgentError.IncorrectUnicode;
         var utf8_iter = utf8_view.iterator();
         while (utf8_iter.nextCodepoint()) |char| {
-            // std.debug.print("{u}\n", .{char});
-
-            const packed_char = font.packed_chars.get(char) orelse return AgentError.IncorrectUnicode; // TODO: this is false
+            const packed_char = font.packed_chars.get(char) orelse return AgentError.CharacterNotFound; // TODO: Probably should just render the no character symbol at 0
 
             const xadv: f32 = packed_char.packed_char.xadvance;
             const xoff: f32 = packed_char.packed_char.xoff;
             const yoff: f32 = packed_char.packed_char.yoff;
 
             // TODO: When the character wouldn't fit place it in a new line.
-
-            // std.debug.print("xadv: {}, xoff: {}, yoff: {}\n", .{ xadv, xoff, yoff });
-            // std.debug.print("glyph idx: {}\n", .{packed_char.glyph_index});
 
             // HACK: I am unable to verify whether whitespaces are supposed to have some data in font files to identify
             //       them as such, or are text rendering engines in charge of knowing that.
@@ -240,13 +231,11 @@ pub const Agent = struct {
                     var xatlas = packed_char.packed_char.x0;
                     while (xatlas < xatlas_end) {
                         if (xrender >= RENDERED_TEXT_WIDTH) break;
-                        std.debug.print("{x:2} ", .{font.atlas[@intCast(yatlas * font.atlas_size.x + xatlas)]});
                         self.rendered_text[@intCast(yrender * RENDERED_TEXT_WIDTH + xrender)] |= font.atlas[@intCast(yatlas * font.atlas_size.x + xatlas)];
 
                         xrender += 1;
                         xatlas += 1;
                     }
-                    // std.debug.print("\n", .{});
                     yrender += 1;
                     yatlas += 1;
                 }
@@ -259,7 +248,6 @@ pub const Agent = struct {
             if (next_char_maybe.len > 0) {
                 const next_char = std.unicode.utf8Decode(next_char_maybe) catch return AgentError.IncorrectUnicode;
                 const kern = @as(f32, @floatFromInt(get_glyph_kern_advance(&font.font_info, char, next_char))) * scale;
-                // std.debug.print("kern: {}\n", .{kern});
                 xpos += kern;
             }
         }
@@ -271,7 +259,7 @@ pub const Agent = struct {
         self.allocator.destroy(self);
     }
 
-    fn clear_rendered_text(self: *Agent) void {
+    pub fn clear_rendered_text(self: *Agent) void {
         var i: usize = 0;
         while (i < RENDERED_TEXT_WIDTH * RENDERED_TEXT_HEIGHT) {
             self.rendered_text[i] = 0;
@@ -311,7 +299,7 @@ test "Agent" {
     const atlas_size = font.atlas_size;
     _ = stbi_write_png("font.png", atlas_size.x, atlas_size.y, 1, font.atlas.ptr, 0);
 
-    const text = "Víztükör fúrógép?";
+    const text = "Víztükör fúrógép őr?";
     try agent.render_text(text);
 
     _ = stbi_write_png("text.png", RENDERED_TEXT_WIDTH, RENDERED_TEXT_HEIGHT, 1, agent.rendered_text.ptr, 0);

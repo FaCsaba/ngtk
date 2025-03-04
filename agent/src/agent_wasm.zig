@@ -43,6 +43,10 @@ pub export fn agent_init() *Agent {
     return Agent.init(std.heap.wasm_allocator) catch _panic("Failed to init Agent");
 }
 
+pub export fn agent_deinit(agent: *Agent) void {
+    agent.deinit();
+}
+
 pub export fn agent_load_font(agent: *Agent, buf: [*c]u8, len: usize) void {
     _ = agent.load_font(buf[0..len]) catch |err| std.debug.panic("Failed to load font: {s}\x00", .{@errorName(err)});
 }
@@ -55,4 +59,8 @@ pub export fn agent_get_font_atlas(agent: *Agent) [*c]u8 {
 pub export fn agent_render_text(agent: *Agent, str: [*c]u8, len: usize) [*c]u8 {
     agent.render_text(str[0..len]) catch |err| std.debug.panic("Failed to render text: {s}\x00", .{@errorName(err)});
     return agent.rendered_text.ptr;
+}
+
+pub export fn agent_clear_text(agent: *Agent) void {
+    agent.clear_rendered_text();
 }
