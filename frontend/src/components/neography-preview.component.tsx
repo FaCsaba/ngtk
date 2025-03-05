@@ -1,15 +1,12 @@
 import { useEffect } from "react";
 import { AgentWasm } from "../agent";
-import { useTheme } from "./theme-provider.component";
 
 const AgentTextBuffWidth = 420;
 const AgentTextBuffHeight = 420;
 
 export const NeographyPreviewer = ({ agent }: { agent: AgentWasm }) => {
-    const theme = useTheme();
     useEffect(() => {
         agent.renderText();
-        theme.setTheme('dark');
     }, []);
 
     return <div>
