@@ -104,11 +104,18 @@ export class AgentWasm {
     private imgFromAlpha(imgPtr: ptr): ImageData {
         const imgAlpha = new Uint8Array(this.exports.memory.buffer, imgPtr, AgentWasm.RENDERED_TEXT_HEIGHT * AgentWasm.RENDERED_TEXT_WIDTH);
         const imgData = new Uint8ClampedArray(imgAlpha.length * 4);
+        const bgHsl = getComputedStyle(document.body).getPropertyValue('--card');
+        const bg = hslToRgb(bgHsl);
+        const fgHsl = getComputedStyle(document.body).getPropertyValue('--card-foreground');
+        const fg = hslToRgb(fgHsl);
+
         for (let i = 0; i < imgAlpha.length; i++) {
-            imgData[i * 4 + 0] = 0;
-            imgData[i * 4 + 1] = 0;
-            imgData[i * 4 + 2] = 0;
-            imgData[i * 4 + 3] = imgAlpha[i];
+            const alpha = imgAlpha[i] / 255;
+
+            imgData[i * 4 + 0] = (1 - alpha) * bg.r + alpha * fg.r; // r
+            imgData[i * 4 + 1] = (1 - alpha) * bg.g + alpha * fg.g; // g
+            imgData[i * 4 + 2] = (1 - alpha) * bg.b + alpha * fg.b; // b
+            imgData[i * 4 + 3] = 255;                               // a
         }
         return new ImageData(imgData, AgentWasm.RENDERED_TEXT_WIDTH, AgentWasm.RENDERED_TEXT_HEIGHT);
     }
@@ -124,4 +131,36 @@ export class AgentWasm {
         const bytes = new Uint8Array(this.exports.memory.buffer, str_ptr, len);
         return new TextDecoder().decode(bytes);
     }
+}
+
+function hslToRgb(hsl: string) {
+    const [hstr, sstr, lstr] = hsl.split(" ")
+    const h = Number(hstr);
+    const s = Number(sstr.split("%")[0]) / 100;
+    const l = Number(lstr.split("%")[0]) / 100;
+
+    let c = (1 - Math.abs(2 * l - 1)) * s,
+        x = c * (1 - Math.abs((h / 60) % 2 - 1)),
+        m = l - c / 2,
+        r = 0,
+        g = 0,
+        b = 0;
+
+    if (0 <= h && h < 60) {
+        r = c; g = x; b = 0;
+    } else if (60 <= h && h < 120) {
+        r = x; g = c; b = 0;
+    } else if (120 <= h && h < 180) {
+        r = 0; g = c; b = x;
+    } else if (180 <= h && h < 240) {
+        r = 0; g = x; b = c;
+    } else if (240 <= h && h < 300) {
+        r = x; g = 0; b = c;
+    } else if (300 <= h && h < 360) {
+        r = c; g = 0; b = x;
+    }
+    r = Math.round((r + m) * 255);
+    g = Math.round((g + m) * 255);
+    b = Math.round((b + m) * 255);
+    return { r, g, b };
 }
