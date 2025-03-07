@@ -35,7 +35,8 @@ class Designer extends Component {
     },
     currentObjectIndex: null,
     selectedObjectIndex: null,
-    selectedTool: null
+    selectedTool: null,
+    onRender: null
   };
 
   keyMap = {
@@ -141,7 +142,7 @@ class Designer extends Component {
       uuid: this.generateUUID()
     };
 
-    onUpdate([...objects, object]);
+    onUpdate([...objects, object], this.svgElement);
 
     this.setState({
       currentObjectIndex: objects.length,
@@ -191,7 +192,7 @@ class Designer extends Component {
         // console.log("ID=> ", object.uuid, "CHANGES :", JSON.stringify(changes))
         return object;
       }
-    }));
+    }), this.svgElement);
   }
 
   getOffset() {
@@ -431,7 +432,7 @@ class Designer extends Component {
 
       let arranger = arrangers[arrange];
       let [arranged, newIndex] = arranger(rest, object);
-      this.props.onUpdate(arranged);
+      this.props.onUpdate(arranged, this.svgElement);
       this.setState({
         selectedObjectIndex: newIndex
       });
@@ -454,7 +455,7 @@ class Designer extends Component {
       handler: null
     }, () => {
       this.objectRefs = {};
-      this.props.onUpdate(rest);
+      this.props.onUpdate(rest, this.svgElement);
     });
   }
 

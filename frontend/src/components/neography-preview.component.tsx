@@ -12,7 +12,7 @@ export const NeographyPreviewer = ({ agent }: { agent: AgentWasm }) => {
     return <div>
         <h3>Preview: </h3>
         <canvas
-            className="rounded-xl border bg-card text-card-foreground shadow"
+            className="focus-visible:border-ring focus-visible:ring-ring/50 outline-none focus-visible:ring-[3px] disabled:pointer-events-none disabled:opacity-50 rounded-xl border bg-card text-card-foreground shadow"
             tabIndex={0}
             onKeyDown={(e: React.KeyboardEvent<HTMLCanvasElement>) => agent.addChar(e.key)}
             width={AgentTextBuffWidth}
