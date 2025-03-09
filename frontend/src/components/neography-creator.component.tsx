@@ -10,6 +10,7 @@ import { Glyph } from "@/models/glyph.model";
 enum NGStep {
     Naming = "Naming",
     GlyphCreation = "GlyphCreation",
+    KeyMapping = "KeyMapping",
     Download = "Download",
 }
 
@@ -22,8 +23,9 @@ export const NeographyCreator = () => {
     function canStepTo(step: NGStep): boolean {
         switch (step) {
             case NGStep.Naming: return true;
-            case NGStep.GlyphCreation: return canStepTo(NGStep.Naming) && name.length > 0;
-            case NGStep.Download: return canStepTo(NGStep.GlyphCreation) && true;
+            case NGStep.GlyphCreation: return canStepTo(NGStep.Naming) && !!name.trim();
+            case NGStep.KeyMapping: return canStepTo(NGStep.GlyphCreation) && glyphs.length > 0 && glyphs.every(g => g.name.trim())
+            case NGStep.Download: return canStepTo(NGStep.KeyMapping) && true;
         }
         return false;
     }
@@ -66,7 +68,7 @@ export const NeographyCreator = () => {
                             return <GlyphCreator key={i} glyph={glyph} setGlyph={(glyph) => {
                                 setGlyphs((glyphs) => {
                                     console.log(glyph);
-                                glyphs[i] = glyph;
+                                    glyphs[i] = glyph;
                                     return [...glyphs];
                                 });
                             }}
@@ -77,6 +79,15 @@ export const NeographyCreator = () => {
                     <Button onClick={() => setGlyphs((glyphs) => [...glyphs, { name: "", objs: [], svg: "" }])}>Add Glyph</Button>
                     <div className="flex gap-2">
                         <Button disabled={!canStepTo(NGStep.Naming)} onClick={() => setStep(NGStep.Naming)}>Previous</Button>
+                        <Button disabled={!canStepTo(NGStep.KeyMapping)} onClick={() => setStep(NGStep.KeyMapping)}>Next</Button>
+                    </div>
+                </AccordionContent>
+            </AccordionItem>
+            <AccordionItem value={NGStep.KeyMapping} disabled={!canStepTo(NGStep.KeyMapping)}>
+                <AccordionTrigger>Key mapping</AccordionTrigger>
+                <AccordionContent className="flex gap-5 flex-col p-5">
+                    <div className="flex gap-2">
+                        <Button disabled={!canStepTo(NGStep.GlyphCreation)} onClick={() => setStep(NGStep.GlyphCreation)}>Previous</Button>
                         <Button disabled={!canStepTo(NGStep.Download)} onClick={() => setStep(NGStep.Download)}>Next</Button>
                     </div>
                 </AccordionContent>
@@ -86,7 +97,7 @@ export const NeographyCreator = () => {
                 <AccordionContent className="flex gap-5 flex-col p-5">
                     <NeographyPreviewer agent={agent} />
                     <div className="flex gap-2">
-                        <Button disabled={!canStepTo(NGStep.GlyphCreation)} onClick={() => setStep(NGStep.GlyphCreation)}>Previous</Button>
+                        <Button disabled={!canStepTo(NGStep.KeyMapping)} onClick={() => setStep(NGStep.KeyMapping)}>Previous</Button>
                         <Button onClick={() => setStep(NGStep.Download)}>Download</Button>
                     </div>
                 </AccordionContent>
