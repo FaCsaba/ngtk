@@ -7,7 +7,7 @@ import { useAgent } from "./agent-provider.component";
 import { GlyphCreator } from "./glyph-creator.component";
 import { Glyph } from "@/models/glyph.model";
 
-export enum NGStep {
+enum NGStep {
     Naming = "Naming",
     GlyphCreation = "GlyphCreation",
     Download = "Download",
@@ -50,7 +50,9 @@ export const NeographyCreator = () => {
             <AccordionItem value={NGStep.Naming} disabled={!canStepTo(NGStep.Naming)}>
                 <AccordionTrigger>General information</AccordionTrigger>
                 <AccordionContent className="flex gap-5 flex-col p-5">
-                    <Input onInput={(e) => setName(e.currentTarget.value)} value={name} placeholder="Name of your script" />
+                    <form onSubmit={(e) => { e.preventDefault(); onChangeStep(NGStep.GlyphCreation) }}>
+                        <Input onInput={(e) => setName(e.currentTarget.value)} value={name} placeholder="Name of your script" />
+                    </form>
                     <div className="flex gap-2">
                         <Button disabled={!canStepTo(NGStep.GlyphCreation)} onClick={() => setStep(NGStep.GlyphCreation)}>Next</Button>
                     </div>
