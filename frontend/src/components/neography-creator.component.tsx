@@ -63,10 +63,15 @@ export const NeographyCreator = () => {
                 <AccordionContent className="flex gap-5 flex-col p-5">
                     <div className="flex flex-wrap gap-2">
                         {glyphs.map((glyph, i) => {
-                            return <GlyphCreator glyph={glyph} setGlyph={(glyph) => {
+                            return <GlyphCreator key={i} glyph={glyph} setGlyph={(glyph) => {
+                                setGlyphs((glyphs) => {
+                                    console.log(glyph);
                                 glyphs[i] = glyph;
-                                setGlyphs([...glyphs]);
-                            }} />
+                                    return [...glyphs];
+                                });
+                            }}
+                                onDelete={() => { setGlyphs((glyphs) => glyphs.filter(g => g !== glyph)) }}
+                            />
                         })}
                     </div>
                     <Button onClick={() => setGlyphs((glyphs) => [...glyphs, { name: "", objs: [], svg: "" }])}>Add Glyph</Button>
