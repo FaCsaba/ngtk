@@ -60,3 +60,74 @@ export enum Key {
     F11 = 300,      // Key: F11
     F12 = 301,      // Key: F12
 }
+
+export function getKeyFromCode(code: string): Key | undefined {
+    // @ts-ignore
+    return Key[code];
+}
+
+export function getHumanReadableFromKey(key: Key): string | undefined {
+    switch (key) {
+        case Key.Null: return undefined;
+        case Key.Quote: return "\'";
+        case Key.Comma: return ",";
+        case Key.Minus: return "-";
+        case Key.Period: return ".";
+        case Key.Slash: return "/";
+        case Key.Digit0: return "0";
+        case Key.Digit1: return "1";
+        case Key.Digit2: return "2";
+        case Key.Digit3: return "3";
+        case Key.Digit4: return "4"; 
+        case Key.Digit5: return "5";
+        case Key.Digit6: return "6";
+        case Key.Digit7: return "7";
+        case Key.Digit8: return "8";
+        case Key.Digit9: return "9";
+        case Key.Semicolon: return ";";
+        case Key.Equal: return "=";
+        case Key.KeyA: return "A";
+        case Key.KeyB: return "B";
+        case Key.KeyC: return "C";
+        case Key.KeyD: return "D";
+        case Key.KeyE: return "E";
+        case Key.KeyF: return "F";
+        case Key.KeyG: return "G";
+        case Key.KeyH: return "H";
+        case Key.KeyI: return "I";
+        case Key.KeyJ: return "J";
+        case Key.KeyK: return "K";
+        case Key.KeyL: return "L";
+        case Key.KeyM: return "M";
+        case Key.KeyN: return "N";
+        case Key.KeyO: return "O";
+        case Key.KeyP: return "P";
+        case Key.KeyQ: return "Q";
+        case Key.KeyR: return "R";
+        case Key.KeyS: return "S";
+        case Key.KeyT: return "T";
+        case Key.KeyU: return "U";
+        case Key.KeyV: return "V";
+        case Key.KeyW: return "W";
+        case Key.KeyX: return "X";
+        case Key.KeyY: return "Y";
+        case Key.KeyZ: return "Z";
+        case Key.BracketLeft: return "[";
+        case Key.Backslash: return "\\";
+        case Key.BracketRight: return "]";
+        case Key.Backquote: return "`";
+        case Key.F1: return "F1";
+        case Key.F2: return "F2";
+        case Key.F3: return "F3";
+        case Key.F4: return "F4";
+        case Key.F5: return "F5";
+        case Key.F6: return "F6";
+        case Key.F7: return "F7";
+        case Key.F8: return "F8";
+        case Key.F9: return "F9";
+        case Key.F10: return "F10";
+        case Key.F11: return "F11";
+        case Key.F12: return "F12";
+    }
+    return undefined;
+}

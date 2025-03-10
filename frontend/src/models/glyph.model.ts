@@ -1,5 +1,9 @@
+import { UUID } from "crypto";
+import { KeyMap } from "./key-map.model";
+
 export interface Glyph {
-    name: string;
+    uuid: UUID;
     svg: string;
     objs: any[];
+    keyMap?: KeyMap; 
 }

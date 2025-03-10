@@ -502,7 +502,8 @@ class Designer extends Component {
     let {
       objects,
       objectTypes,
-      insertMenu: InsertMenuComponent
+      insertMenu: InsertMenuComponent,
+      styles,
     } = this.props;
 
     let currentObject = objects[selectedObjectIndex],
