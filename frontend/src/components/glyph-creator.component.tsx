@@ -1,9 +1,9 @@
 import { Glyph } from "@/models/glyph.model";
-import { Designer, Path, Rect } from "@/react-designer";
+import { Designer, Path } from "@/extern/react-designer";
 import { Button } from "./ui/button";
 import { X } from "lucide-react"
 import { cn } from "@/lib/utils";
-import { styles } from "@/react-designer/Designer";
+import { styles } from "@/extern/react-designer/Designer";
 
 interface GlyphCreatorProps {
     glyph: Glyph;
@@ -18,11 +18,8 @@ export function GlyphCreator({ glyph, setGlyph, className, onDelete, ...props }:
                 <Button onClick={onDelete} variant="destructive" size="icon"><X /></Button>
             </div>
             <Designer objects={glyph.objs} width={250} height={250}
-                objectTypes={{
-                    'rect': Rect,
-                    'path': Path
-                }}
-                onUpdate={(objs: any[], svg: SVGElement) => setGlyph({ ...glyph, objs, svg: svg.innerHTML })}
+                objectTypes={{ 'path': Path }}
+                onUpdate={(objs: any[], svg: SVGElement) => setGlyph({ ...glyph, objs, svg })}
                 background="none"
                 styles={{
                     ...styles, canvasContainer: {

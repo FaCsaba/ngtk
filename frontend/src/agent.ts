@@ -81,7 +81,7 @@ export class AgentWasm {
         this.ctx?.putImageData(img, 0, 0);
     }
 
-    private loadFont(font: ArrayBuffer): void {
+    public loadFont(font: ArrayBuffer): void {
         this.fontAlloc = this.malloc(font.byteLength);
 
         // Copy the font into wasm memory

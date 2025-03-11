@@ -3,7 +3,7 @@ import { KeyMap } from "./key-map.model";
 
 export interface Glyph {
     uuid: UUID;
-    svg: string;
+    svg?: SVGElement;
     objs: any[];
     keyMap?: KeyMap; 
 }

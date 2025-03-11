@@ -1,3 +1,5 @@
+import { toBytes } from "@/lib/utils";
+
 export enum Key {
     Null = 0,        // Key: NULL, used for no key pressed
     Quote = 39,       // Key: '
@@ -130,4 +132,8 @@ export function getHumanReadableFromKey(key: Key): string | undefined {
         case Key.F12: return "F12";
     }
     return undefined;
+}
+
+export function encodeKey(key: Key): number[] {
+    return toBytes(key, 2);
 }

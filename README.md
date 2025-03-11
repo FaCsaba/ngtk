@@ -41,6 +41,7 @@ npm run dev
     - [Image write](https://github.com/nothings/stb/blob/master/stb_image_write.h)
     - [Rect pack](https://github.com/nothings/stb/blob/master/stb_rect_pack.h)
 - [Glukfonts](https://www.glukfonts.pl): OpenFontLi­cense font DigitaltsLime for testing
+- [opentype.js](https://github.com/opentypejs/opentype.js): Opentype javascript library allowing editing of font files
 
 ## Planned features
 - [ ] An easy to use online editor
