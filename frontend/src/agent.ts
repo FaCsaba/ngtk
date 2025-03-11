@@ -1,5 +1,5 @@
 import createAgentWasm from "./assets/agent.wasm?init";
-import DigitaltsLime from "./assets/DigitaltsLime.ttf";
+import { KeyMap } from "./models/key-map.model";
 
 type ptr = number;
 
@@ -14,6 +14,7 @@ export interface AgentExports {
     agent_load_font: (agent: ptr, buf: ptr, buf_len: number) => void;
     agent_get_font_atlas: (agent: ptr) => ptr;
     agent_add_char: (agent: ptr, char: number) => void;
+    agent_put_key: (agent: ptr, mod: number, key: number) => void;
     agent_remove_char: (agent: ptr) => void;
     agent_render_text: (agent: ptr) => ptr;
     malloc: (size: number) => ptr;
@@ -52,8 +53,6 @@ export class AgentWasm {
         });
         a.exports = a.wasm.exports as unknown as AgentExports;
         a.agentPtr = a.exports.agent_init();
-        const font = await fetch(DigitaltsLime).then(res => res.arrayBuffer());
-        a.loadFont(font);
         return a
     }
 
@@ -66,11 +65,17 @@ export class AgentWasm {
     }
 
     public addChar(char: string): void {
-        if (char.length != 1) {
-            if (char == "Backspace") this.exports.agent_remove_char(this.agentPtr);
-        } else {
-            this.exports.agent_add_char(this.agentPtr, char.codePointAt(0)!);
-        }
+        this.exports.agent_add_char(this.agentPtr, char.codePointAt(0)!);
+        this.renderText();
+    }
+
+    public putKey(keyMap: KeyMap): void {
+        this.exports.agent_put_key(this.agentPtr, keyMap.mods, keyMap.key);
+        this.renderText();
+    }
+
+    public removeChar(): void {
+        this.exports.agent_remove_char(this.agentPtr);
         this.renderText();
     }
 

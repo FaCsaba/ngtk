@@ -47,6 +47,11 @@ const ExtPackedChar = struct {
     codepoint: u21,
 };
 
+const KeyMap = struct {
+    mod: u8,
+    key: u16,
+};
+
 pub const Font = struct {
     font_info: FontInfo,
     font_buf: []u8,
@@ -59,6 +64,7 @@ pub const Font = struct {
     descent: i32,
     vert_adv: i32,
     bounding_box: BoundingBox,
+    key_mapping: ?HashMap(KeyMap, u21),
 };
 
 const RENDERED_TEXT_WIDTH: i32 = 420;
@@ -66,7 +72,7 @@ const RENDERED_TEXT_HEIGHT: i32 = 420;
 const DEFAULT_FONT_SIZE: f32 = 24;
 
 // TODO: Introduce fallback font for when the user types something unexpected,
-//       Maybe allow chaning to their default ime.
+//       Maybe allow chaining to their default ime.
 // TODO: Find a way to render svgs with color.
 pub const Agent = struct {
     allocator: Allocator,
@@ -86,6 +92,32 @@ pub const Agent = struct {
         return a;
     }
 
+    fn get_key_mapping(self: *Agent, font_buf: []const u8) !?HashMap(KeyMap, u21) {
+        const table = find_table(font_buf, "meta") orelse return null;
+        var ngtk = find_in_meta_table(table, "Ngtk") orelse return null;
+        const version = ngtk[0];
+        if (version != 1) std.debug.panic("Expected ngtk version 1, got {} instead.\x00", .{version});
+        const key_map_length: usize = @intCast(get_u32(ngtk[1..]));
+
+        const key_maps_offset: usize = 5;
+        const key_map_size: usize = 7;
+
+        var key_mapping = HashMap(KeyMap, u21).init(self.allocator);
+
+        var i: usize = 0;
+        while (i < key_map_length) {
+            const loc: usize = key_maps_offset + key_map_size * i;
+            const mod = ngtk[loc];
+            const key = get_u16(ngtk[(loc+1)..]);
+            const char: u21 = @intCast(get_u32(ngtk[(loc+3)..]));
+            const key_map = KeyMap { .mod = mod, .key = key };
+            try key_mapping.put(key_map, char);
+            i += 1;
+        }
+
+        return key_mapping;
+    }
+
     fn load_font_adv(self: *Agent, buf: []const u8, unicode_start: u32, num_chars: u32) !Font {
         var font_info: FontInfo = undefined;
 
@@ -94,6 +126,9 @@ pub const Agent = struct {
         if (init_font(&font_info, buf.ptr, 0) == 0) {
             return AgentError.InitFontFailed;
         }
+
+        const key_mapping = try self.get_key_mapping(font_buf);
+        const key_mapping_count = if (key_mapping) |km| km.count() else 0;
 
         const font_size = self.font_size;
         const scale = scale_for_mapping_em_to_pixels(&font_info, font_size);
@@ -107,7 +142,7 @@ pub const Agent = struct {
         const atlas_size = Point{ .x = 1024, .y = 1024 };
 
         var ctx: PackContext = undefined;
-        const packed_chars_array = try self.allocator.alloc(PackedChar, @intCast(num_chars));
+        const packed_chars_array = try self.allocator.alloc(PackedChar, @as(usize, @intCast(num_chars)) + key_mapping_count);
         defer self.allocator.free(packed_chars_array);
         const atlas = try self.allocator.alloc(u8, @intCast(atlas_size.x * atlas_size.y));
         pack_set_skip_missing_codepoints(&ctx, 0);
@@ -135,14 +170,44 @@ pub const Agent = struct {
             1,
         ) == 0) return AgentError.Packing;
 
+        if (key_mapping_count > 0) {
+            var km_range = PackRange {
+                .font_size = point_size(self.font_size),
+                .first_unicode_codepoint_in_range = @intCast(0xE000),
+                .num_chars = @intCast(key_mapping_count),
+                .chardata_for_range = packed_chars_array[num_chars..].ptr,
+            };
+            if (pack_font_ranges(
+                &ctx,
+                font_info.data,
+                0,
+                &km_range,
+                1,
+            ) == 0) return AgentError.Packing;
+        }
+
         pack_end(&ctx);
 
         var packed_chars = HashMap(u21, ExtPackedChar).init(self.allocator);
         var i: u32 = 0;
-        while (i < packed_chars_array.len) {
-            const glyph_index = find_glyph_index(&font_info, @intCast(unicode_start + i));
+        while (i < num_chars) {
             const codepoint = unicode_start + i;
+            const glyph_index = find_glyph_index(&font_info, @intCast(codepoint));
             const packed_char = packed_chars_array[@intCast(i)];
+            const packed_char_ext: ExtPackedChar = .{
+                .codepoint = @intCast(codepoint),
+                .glyph_index = glyph_index,
+                .packed_char = packed_char,
+            };
+            try packed_chars.put(@intCast(codepoint), packed_char_ext);
+            i += 1;
+        }
+
+        i = 0;
+        while (i < key_mapping_count) {
+            const codepoint = 0xE000 + i;
+            const glyph_index = find_glyph_index(&font_info, @intCast(codepoint));
+            const packed_char = packed_chars_array[@intCast(num_chars + i)];
             const packed_char_ext: ExtPackedChar = .{
                 .codepoint = @intCast(codepoint),
                 .glyph_index = glyph_index,
@@ -169,6 +234,7 @@ pub const Agent = struct {
             .ascent = ascent,
             .descent = descent,
             .vert_adv = ascent - descent + line_gap,
+            .key_mapping = key_mapping,
         };
 
         return font;
@@ -184,6 +250,8 @@ pub const Agent = struct {
     pub fn unload_font(self: *Agent, font: Font) void {
         var chars = font.packed_chars;
         chars.deinit();
+        var key_mapping = font.key_mapping;
+        if (key_mapping) |*km| km.deinit();
         self.allocator.free(font.font_buf);
         self.allocator.free(font.atlas);
     }
@@ -263,6 +331,14 @@ pub const Agent = struct {
         }
     }
 
+    pub fn put_key(self: *Agent, mod: u8, key: u16) !void {
+        const font = self.font orelse return;
+        const key_mapping = font.key_mapping orelse return;
+        const km = KeyMap { .mod = mod, .key = key };
+        const char = key_mapping.get(km) orelse return;
+        try self.add_char(char);
+    }
+
     pub fn deinit(self: *Agent) void {
         if (self.font) |font| self.unload_font(font);
         self.text.deinit();
@@ -278,6 +354,60 @@ pub const Agent = struct {
         }
     }
 };
+
+fn get_u16(font_buf: []const u8) u16 {
+    return (@as(u16, @intCast(font_buf[0])) << 8) +
+        (@as(u16, @intCast(font_buf[1])) << 0);
+}
+
+fn get_u32(font_buf: []const u8) u32 {
+    return (@as(u32, @intCast(font_buf[0])) << 24) +
+        (@as(u32, @intCast(font_buf[1])) << 16) +
+        (@as(u32, @intCast(font_buf[2])) << 8) +
+        (@as(u32, @intCast(font_buf[3])) << 0);
+}
+
+fn is_tag(font_buf: []const u8, tag: []const u8) bool {
+    return font_buf[0] == tag[0] and
+        font_buf[1] == tag[1] and
+        font_buf[2] == tag[2] and
+        font_buf[3] == tag[3];
+}
+
+fn find_table(font_buf: []const u8, tag: []const u8) ?[]const u8 {
+    const num_tables: usize = @intCast(get_u16(font_buf[4..]));
+    const table_dir: usize = 12;
+    const table_size: usize = 16;
+
+    var i: usize = 0;
+    while (i < num_tables) {
+        const loc = table_dir + table_size * i;
+        if (is_tag(font_buf[loc..], tag))
+            return font_buf[@as(usize, @intCast(get_u32(font_buf[(loc + 8)..])))..];
+        i += 1;
+    }
+    return null;
+}
+
+fn find_in_meta_table(meta_table: []const u8, tag: []const u8) ?[]const u8 {
+    const num_data_maps_offset = 12;
+    const num_data_maps: usize = @intCast(get_u32(meta_table[num_data_maps_offset..]));
+    const data_maps_offset = 16;
+    const data_map_size = 12;
+
+    const data_offset_offset_in_data_map = 4;
+
+    var i: usize = 0;
+    while (i < num_data_maps) {
+        const loc = data_maps_offset + data_map_size * i;
+        if (is_tag(meta_table[loc..], tag)) {
+            const offset: usize = @intCast(get_u32(meta_table[(loc + data_offset_offset_in_data_map)..]));
+            return meta_table[offset..];
+        }
+        i += 1;
+    }
+    return null;
+}
 
 // TODO: Not an exhaustive list. https://en.wikipedia.org/wiki/Whitespace_character
 const whitespace = [_]u21{
@@ -315,4 +445,17 @@ test "Agent" {
     try agent.render_text();
 
     _ = stbi_write_png("text.png", RENDERED_TEXT_WIDTH, RENDERED_TEXT_HEIGHT, 1, agent.rendered_text.ptr, 0);
+}
+
+test "HashMaps with KeyMap keys" {
+    const alloc = std.testing.allocator;
+
+    var hm = HashMap(KeyMap, u21).init(alloc);
+    defer hm.deinit();
+
+    const km1 = KeyMap { .mod = 0, .key = 69 };
+    try hm.put(km1, 34);
+
+    const km2 = KeyMap { .mod = 0, .key = 69 };
+    try std.testing.expect(hm.get(km2) == 34);
 }

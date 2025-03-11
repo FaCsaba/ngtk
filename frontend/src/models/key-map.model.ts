@@ -1,12 +1,15 @@
-import { toBytes } from "@/lib/utils";
-import { encodeKey, Key } from "./key.enum";
+import { getModsFromKeyEvent } from "./key-mod.enum";
+import { getKeyFromCode, Key } from "./key.enum";
 
 export interface KeyMap {
     mods: number;
     key: Key;
 }
 
-export function encodeKeyMap(keyMap: KeyMap): number[] {
-    const mods = toBytes(keyMap.mods, 1);
-    return mods.concat(encodeKey(keyMap.key));
+export function getKeyMapFromKeyEvent(e: React.KeyboardEvent): KeyMap | undefined {
+    const key = getKeyFromCode(e.code);
+    if (!key) return;
+
+    const mods = getModsFromKeyEvent(e);
+    return { key, mods };
 }

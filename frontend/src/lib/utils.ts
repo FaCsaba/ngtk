@@ -5,7 +5,7 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
 }
 
-export function toBytes(number: number, size = 4): number[] {
+export function toBytes(number: number, size: number): number[] {
   const bytes = new Uint8ClampedArray(size);
   let x = number;
   for (let i = (size - 1); i >= 0; i--) {

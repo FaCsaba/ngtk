@@ -1,5 +1,6 @@
 import { toBytes } from "@/lib/utils";
-import { encodeKeyMap, KeyMap } from "./key-map.model";
+import { Glyph } from "./glyph.model";
+import { KeyMap } from "./key-map.model";
 
 /**
  * NGTK Meta data
@@ -14,25 +15,30 @@ import { encodeKeyMap, KeyMap } from "./key-map.model";
  * | keymap[] | keymaps | an array of keymaps indexed by length |
  * 
  * Keymaps are encoded as follows
- * | type | name | description             |
- * |---------------------------------------|
- * | u8   | mods | bitmap of modifier keys |
- * | u16  | key  | the actual key          |
+ * | type | name | description                    |
+ * |----------------------------------------------|
+ * | u8   | mods | bitmap of modifier keys        |
+ * | u16  | key  | the actual key                 |
+ * | u32  | char | the character this key maps to |
  */
 export class NgtkMeta {
     private static readonly NgtkMetaVersion = 1;
 
     public constructor(
-        private keyMaps: KeyMap[]
+        private glyphs: Glyph[]
     ) { }
 
     public encode(): number[] {
-        let meta: number[] = [];
-        meta = meta.concat(toBytes(NgtkMeta.NgtkMetaVersion, 1));
-        meta = meta.concat(toBytes(this.keyMaps.length, 4));
-        this.keyMaps.forEach(keyMap => {
-            meta = meta.concat(encodeKeyMap(keyMap))
-        })
-        return meta;
+        const version = toBytes(NgtkMeta.NgtkMetaVersion, 1);
+        const keyMapLength = toBytes(this.glyphs.length, 4);
+        const keyMaps = this.glyphs.reduce<number[]>((m, glyph, i) => m.concat(this.encodeKeyMap(glyph.keyMap!, 0xE000 + i)), []);
+        return version.concat(keyMapLength).concat(keyMaps);
+    }
+
+    private encodeKeyMap(keyMap: KeyMap, char: number): number[] {
+        const mods = toBytes(keyMap.mods, 1);
+        const key = toBytes(keyMap.key, 2);
+        const charB = toBytes(char, 4);
+        return mods.concat(key).concat(charB);
     }
 }

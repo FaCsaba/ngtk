@@ -1,6 +1,6 @@
 import { cn } from "@/lib/utils";
 import { Glyph } from "@/models/glyph.model";
-import { KeyMap } from "@/models/key-map.model";
+import { getKeyMapFromKeyEvent, KeyMap } from "@/models/key-map.model";
 import { getHumanReadableFromMod, KeyMod } from "@/models/key-mod.enum";
 import { getHumanReadableFromKey, getKeyFromCode } from "@/models/key.enum";
 import React, { useState } from "react";
@@ -19,16 +19,8 @@ export function KeyMapping({ glyph, setGlyph, className, ...props }: React.Compo
             return;
         }
         if (!isRecording) return;
-        const key = getKeyFromCode(e.code);
-        if (!key) return;
-
-        var mods = KeyMod.None;
-        if (e.shiftKey) mods |= KeyMod.Shift;
-        if (e.ctrlKey) mods |= KeyMod.Ctrl;
-        if (e.altKey) mods |= KeyMod.Alt;
-        const mapping: KeyMap = { key, mods };
-        console.log(mapping);
-        setGlyph({ ...glyph, keyMap: mapping });
+        const keyMap = getKeyMapFromKeyEvent(e);
+        setGlyph({ ...glyph, keyMap });
         setIsRecording(false);
     }
 

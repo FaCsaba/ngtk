@@ -14,3 +14,11 @@ export function getHumanReadableFromMod(mod: KeyMod): string | undefined {
     }
     return undefined;
 }
+
+export function getModsFromKeyEvent(e: React.KeyboardEvent): number {
+    var mods = KeyMod.None;
+    if (e.shiftKey) mods |= KeyMod.Shift;
+    if (e.ctrlKey) mods |= KeyMod.Ctrl;
+    if (e.altKey) mods |= KeyMod.Alt;
+    return mods;
+}

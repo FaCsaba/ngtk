@@ -27,7 +27,7 @@ export const NeographyCreator = () => {
         switch (step) {
             case NGStep.Naming: return true;
             case NGStep.GlyphCreation: return canStepTo(NGStep.Naming) && !!name.trim();
-            case NGStep.KeyMapping: return canStepTo(NGStep.GlyphCreation) && glyphs.length > 0;
+            case NGStep.KeyMapping: return canStepTo(NGStep.GlyphCreation) && glyphs.length > 0 && glyphs.every(g => g.svg);
             case NGStep.Preview: return canStepTo(NGStep.KeyMapping) && glyphs.every(g => g.keyMap);
         }
         return false;
@@ -71,10 +71,8 @@ export const NeographyCreator = () => {
         });
 
         const gs = glyphs.map((g, i) => {
-            if (!g.svg) throw new Error("Unreachable: SVG of glyph " + JSON.stringify(g) + " should not be empty.");
-            const paths = Array.from(g.svg.querySelectorAll("path"));
+            const paths = Array.from(g.svg?.querySelectorAll("path") ?? []);
             const path = paths.reduce((d, path) => d + " " + path.getAttribute("d"), "");
-            console.log(path);
             return new OpenTypeGlyph({
                 name: "g"+i,
                 unicode: 0xE000 + i,
@@ -94,12 +92,11 @@ export const NeographyCreator = () => {
             glyphs: gs,
         });
 
-        const ngtkMeta = new NgtkMeta(glyphs.map(g => g.keyMap!));
+        const ngtkMeta = new NgtkMeta(glyphs).encode().reduce((s, d) => s+String.fromCodePoint(d), "");
 
-        const ngtkMetaString = new TextDecoder().decode(new Uint8Array(ngtkMeta.encode()));
-
+        debugger;
         // @ts-ignore
-        font.metas = {...font.metas, "Ngtk": ngtkMetaString };
+        font.metas = {...font.metas, "Ngtk": ngtkMeta };
 
         if (!agent) throw new Error("Unreachable: Agent should be initialized at this point.");
 

@@ -62,6 +62,10 @@ pub export fn agent_add_text(agent: *Agent, str: [*c]u8, len: usize) void {
     agent.add_text(str[0..len]) catch |err| std.debug.panic("Failed to send text to agent: {s}\x00", .{@errorName(err)});
 }
 
+pub export fn agent_put_key(agent: *Agent, mod: u8, key: u16) void {
+    agent.put_key(mod, key) catch |err| std.debug.panic("Failed to send key to agent: {s}\x00", .{@errorName(err)});
+}
+
 pub export fn agent_remove_char(agent: *Agent) void {
     agent.remove_char();
 }
