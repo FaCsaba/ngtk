@@ -1,14 +1,13 @@
 import { useState } from "react";
 import { Input } from "./ui/input";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "./ui/accordion";
-import { Button } from "./ui/button";
+import { Button, buttonVariants } from "./ui/button";
 import { NeographyPreviewer } from "./neography-preview.component";
 import { useAgent } from "./agent-provider.component";
 import { GlyphCreator } from "./glyph-creator.component";
 import { Glyph } from "@/models/glyph.model";
 import { KeyMapping } from "./key-mapping.component";
-import { Glyph as OpenTypeGlyph, Path as OpenTypePath, Font as OpenTypeFont } from '@/extern/opentype-js/opentype.mjs';
-import { NgtkMeta } from "@/models/ngtk-meta";
+import { Font } from "@/models/font.model";
 
 enum NGStep {
     Naming = "Naming",
@@ -22,6 +21,7 @@ export const NeographyCreator = () => {
     const [step, setStep] = useState(NGStep.Naming);
     const [name, setName] = useState("");
     const [glyphs, setGlyphs] = useState<Glyph[]>([]);
+    const [font, setFont] = useState<Font>();
 
     function canStepTo(step: NGStep): boolean {
         switch (step) {
@@ -56,51 +56,12 @@ export const NeographyCreator = () => {
 
 
     function onChangeStepToPreview(): void {
-        const notdefPath = new OpenTypePath();
-        notdefPath.moveTo(25, 25);
-        notdefPath.lineTo(250-25, 25);
-        notdefPath.lineTo(250-25, 250-25);
-        notdefPath.lineTo(25, 250-25);
-        notdefPath.lineTo(25, 25);
-        notdefPath.closePath();
-        const notdefGlyph = new OpenTypeGlyph({
-            name: ".notdef",
-            unicode: 0,
-            advanceWidth: 250,
-            path: notdefPath,
-        });
-
-        const gs = glyphs.map((g, i) => {
-            const paths = Array.from(g.svg?.querySelectorAll("path") ?? []);
-            const path = paths.reduce((d, path) => d + " " + path.getAttribute("d"), "");
-            return new OpenTypeGlyph({
-                name: "g"+i,
-                unicode: 0xE000 + i,
-                path: OpenTypePath.fromSVG(path),
-                advanceWidth: 250,
-            });
-        });
-
-        gs.unshift(notdefGlyph);
-
-        const font = new OpenTypeFont({
-            familyName: name,
-            styleName: "Medium",
-            unitsPerEm: 250,
-            ascender: 400,
-            descender: -100,
-            glyphs: gs,
-        });
-
-        const ngtkMeta = new NgtkMeta(glyphs).encode().reduce((s, d) => s+String.fromCodePoint(d), "");
-
-        debugger;
-        // @ts-ignore
-        font.metas = {...font.metas, "Ngtk": ngtkMeta };
+        const font = new Font(glyphs, name);
+        setFont(font);
 
         if (!agent) throw new Error("Unreachable: Agent should be initialized at this point.");
 
-        agent.loadFont(font.toArrayBuffer());
+        agent.loadFont(font.encode());
         setStep(NGStep.Preview);
     }
 
@@ -171,7 +132,7 @@ export const NeographyCreator = () => {
                     <NeographyPreviewer agent={agent} />
                     <div className="flex gap-2">
                         <Button disabled={!canStepTo(NGStep.KeyMapping)} onClick={() => setStep(NGStep.KeyMapping)}>Previous</Button>
-                        <Button onClick={() => setStep(NGStep.Preview)}>Download</Button>
+                        <a className={buttonVariants()} download={name+".ttf"} href={window.URL.createObjectURL(new Blob([font?.encode() ?? ""]))}>Download</a>
                     </div>
                 </AccordionContent>
             </AccordionItem>

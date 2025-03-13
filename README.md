@@ -5,8 +5,8 @@ Neographers' Toolkit is my Computer Science final year project at the University
 ## Setup
 
 **Requirements**:
-- zig compiler
-- nodejs
+- Zig (v0.13)
+- Node (v21+)
 
 To run the frontend application make sure to compile the agent.
 You can do so via this command 
@@ -42,6 +42,7 @@ npm run dev
     - [Rect pack](https://github.com/nothings/stb/blob/master/stb_rect_pack.h)
 - [Glukfonts](https://www.glukfonts.pl): OpenFontLi­cense font DigitaltsLime for testing
 - [opentype.js](https://github.com/opentypejs/opentype.js): Opentype javascript library allowing editing of font files
+- [FiraSans](https://github.com/mozilla/Fira): OpenFontLicensed font from the Mozilla Foundation, used as a fallback font 
 
 ## Planned features
 - [ ] An easy to use online editor

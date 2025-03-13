@@ -15,6 +15,7 @@ export interface AgentExports {
     agent_get_font_atlas: (agent: ptr) => ptr;
     agent_add_char: (agent: ptr, char: number) => void;
     agent_put_key: (agent: ptr, mod: number, key: number) => void;
+    agent_has_key: (agent: ptr, mod: number, key: number) => boolean;
     agent_remove_char: (agent: ptr) => void;
     agent_render_text: (agent: ptr) => ptr;
     malloc: (size: number) => ptr;
@@ -72,6 +73,10 @@ export class AgentWasm {
     public putKey(keyMap: KeyMap): void {
         this.exports.agent_put_key(this.agentPtr, keyMap.mods, keyMap.key);
         this.renderText();
+    }
+
+    public hasKey(keyMap: KeyMap): boolean {
+        return this.exports.agent_has_key(this.agentPtr, keyMap.mods, keyMap.key);
     }
 
     public removeChar(): void {

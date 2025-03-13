@@ -17,7 +17,7 @@ export function GlyphCreator({ glyph, setGlyph, className, onDelete, ...props }:
             <div className="p-2">
                 <Button onClick={onDelete} variant="destructive" size="icon"><X /></Button>
             </div>
-            <Designer objects={glyph.objs} width={250} height={250}
+            <Designer objects={glyph.objs} width={150} height={250}
                 objectTypes={{ 'path': Path }}
                 onUpdate={(objs: any[], svg: SVGElement) => setGlyph({ ...glyph, objs, svg })}
                 background="none"

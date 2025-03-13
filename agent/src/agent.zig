@@ -270,7 +270,7 @@ pub const Agent = struct {
         var i: usize = 0;
         while (i < self.text.items.len) {
             const char = self.text.items[i];
-            const packed_char = font.packed_chars.get(char) orelse return AgentError.CharacterNotFound; // TODO: Probably should just render the no character symbol at 0
+            const packed_char = font.packed_chars.get(char) orelse font.packed_chars.get(32) orelse return AgentError.CharacterNotFound;
 
             const xadv: f32 = packed_char.packed_char.xadvance;
             const xoff: f32 = packed_char.packed_char.xoff;
@@ -287,11 +287,11 @@ pub const Agent = struct {
                 var yrender: i32 = @intFromFloat(ypos + baseline + yoff);
                 var yatlas = packed_char.packed_char.y0;
                 while (yatlas < yatlas_end) {
-                    if (yrender >= RENDERED_TEXT_HEIGHT) break;
+                    if (yrender >= RENDERED_TEXT_HEIGHT or yrender < 0) break;
                     var xrender: i32 = @intFromFloat(xpos + xoff);
                     var xatlas = packed_char.packed_char.x0;
                     while (xatlas < xatlas_end) {
-                        if (xrender >= RENDERED_TEXT_WIDTH) break;
+                        if (xrender >= RENDERED_TEXT_WIDTH or xrender < 0) break;
                         self.rendered_text[@intCast(yrender * RENDERED_TEXT_WIDTH + xrender)] |= font.atlas[@intCast(yatlas * font.atlas_size.x + xatlas)];
 
                         xrender += 1;
@@ -318,7 +318,6 @@ pub const Agent = struct {
         _ = self.text.popOrNull();
     }
 
-    // TODO: Once the system for character mapping is in place, use that instead of adding characters
     pub fn add_char(self: *Agent, char: u21) !void {
         try self.text.append(char);
     }
@@ -337,6 +336,13 @@ pub const Agent = struct {
         const km = KeyMap { .mod = mod, .key = key };
         const char = key_mapping.get(km) orelse return;
         try self.add_char(char);
+    }
+
+    pub fn has_key(self: *Agent, mod: u8, key: u16) bool {
+        const font = self.font orelse return false;
+        const key_mapping = font.key_mapping orelse return false;
+        const km = KeyMap { .mod = mod, .key = key };
+        return key_mapping.contains(km);
     }
 
     pub fn deinit(self: *Agent) void {

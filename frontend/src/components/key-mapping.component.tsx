@@ -1,8 +1,8 @@
 import { cn } from "@/lib/utils";
 import { Glyph } from "@/models/glyph.model";
-import { getKeyMapFromKeyEvent, KeyMap } from "@/models/key-map.model";
+import { getKeyMapFromKeyEvent } from "@/models/key-map.model";
 import { getHumanReadableFromMod, KeyMod } from "@/models/key-mod.enum";
-import { getHumanReadableFromKey, getKeyFromCode } from "@/models/key.enum";
+import { getHumanReadableFromKey } from "@/models/key.enum";
 import React, { useState } from "react";
 
 interface KeyMappingProps {
@@ -35,7 +35,7 @@ export function KeyMapping({ glyph, setGlyph, className, ...props }: React.Compo
             onKeyDown={onKeyDown}
             {...props}
         >
-            <svg className="w-[4rem] h-[4rem]" viewBox="0 0 250 250" ref={(e) => { if (e) e.innerHTML = glyph.svg?.innerHTML ?? ""; }} />
+            <svg className="w-[4rem] h-[4rem]" viewBox="0 0 150 250" ref={(e) => { if (e) e.innerHTML = glyph.svg?.innerHTML ?? ""; }} />
             <div className="border-l"></div>
             {glyph.keyMap ? <div className="flex items-center gap-3 text-xl">
                 {glyph.keyMap.mods & KeyMod.Ctrl ? <><div className="flex items-center justify-center border w-[6rem] h-[4rem] bg-background shadow rounded-xl">{getHumanReadableFromMod(KeyMod.Ctrl)}</div><p>+</p></> : <></>}

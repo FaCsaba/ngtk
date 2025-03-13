@@ -11,13 +11,18 @@ export const NeographyPreviewer = ({ agent }: { agent: AgentWasm }) => {
     }, []);
 
     function onKeyDown(e: React.KeyboardEvent): void {
-        switch (e.key) {
-            case "Backspace": agent.removeChar(); return;
-            case "Space": agent.addChar(" "); return;
+        if (e.key === "Backspace") {
+            agent.removeChar();
+            return;
         }
+
         const keyMap = getKeyMapFromKeyEvent(e);
-        if (!keyMap) return;
-        agent.putKey(keyMap);
+        if (keyMap && agent.hasKey(keyMap)) {
+            agent.putKey(keyMap);
+        } else if (e.key.length === 1) {
+            agent.addChar(e.key);
+        }
+
     }
 
     return <div>

@@ -66,6 +66,10 @@ pub export fn agent_put_key(agent: *Agent, mod: u8, key: u16) void {
     agent.put_key(mod, key) catch |err| std.debug.panic("Failed to send key to agent: {s}\x00", .{@errorName(err)});
 }
 
+pub export fn agent_has_key(agent: *Agent, mod: u8, key: u16) bool {
+    return agent.has_key(mod, key);
+}
+
 pub export fn agent_remove_char(agent: *Agent) void {
     agent.remove_char();
 }
