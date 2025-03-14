@@ -37,6 +37,8 @@ export class AgentWasm {
     private ctx?: CanvasRenderingContext2D;
     private renderSize: Size = { width: 420, height: 420 };
 
+    private textDecoder = new TextDecoder();
+
     private constructor() { }
 
     private makeEnvironment(env: any) {
@@ -52,8 +54,8 @@ export class AgentWasm {
         const a = new AgentWasm();
         a.wasm = await createAgentWasm({
             env: a.makeEnvironment({
-                _print: (str_ptr: number) => { console.log(a.getString(str_ptr)); },
-                _panic: (str_ptr: number) => { throw new Error(a.getString(str_ptr)); },
+                _print: (str_ptr: number, len: number) => { console.log(a.getString(str_ptr, len)); },
+                _panic: (str_ptr: number, len: number) => { throw new Error(a.getString(str_ptr, len)); },
             }),
         });
         a.exports = a.wasm.exports as unknown as AgentExports;
@@ -140,16 +142,9 @@ export class AgentWasm {
         return new ImageData(imgData, this.renderSize.width, this.renderSize.height);
     }
 
-    private getString(str_ptr: number): string {
-        const mem = new Uint8Array(this.exports.memory.buffer);
-        let len = 0;
-        let ptr = str_ptr;
-        while (mem[ptr] != 0) {
-            len++;
-            ptr++;
-        }
+    private getString(str_ptr: number, len: number): string {
         const bytes = new Uint8Array(this.exports.memory.buffer, str_ptr, len);
-        return new TextDecoder().decode(bytes);
+        return this.textDecoder.decode(bytes);
     }
 }
 
