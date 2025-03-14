@@ -21,6 +21,7 @@ const find_glyph_index = tt.stbtt_FindGlyphIndex;
 const get_glyph_box = tt.stbtt_GetGlyphBox;
 const pack_set_skip_missing_codepoints = tt.stbtt_PackSetSkipMissingCodepoints;
 const get_glyph_kern_advance = tt.stbtt_GetGlyphKernAdvance;
+const get_glyph_h_metrics = tt.stbtt_GetGlyphHMetrics;
 
 const AgentError = error{
     InitFontFailed,
@@ -67,8 +68,7 @@ pub const Font = struct {
     key_mapping: ?HashMap(KeyMap, u21),
 };
 
-const RENDERED_TEXT_WIDTH: i32 = 420;
-const RENDERED_TEXT_HEIGHT: i32 = 420;
+const DEFAULT_RENDER_SIZE: Point = .{ .x = 420, .y = 420 };
 const DEFAULT_FONT_SIZE: f32 = 24;
 
 // TODO: Introduce fallback font for when the user types something unexpected,
@@ -76,6 +76,7 @@ const DEFAULT_FONT_SIZE: f32 = 24;
 // TODO: Find a way to render svgs with color.
 pub const Agent = struct {
     allocator: Allocator,
+    render_size: Point,
     text: ArrayList(u21),
     rendered_text: []u8,
     font: ?Font,
@@ -84,8 +85,9 @@ pub const Agent = struct {
     pub fn init(allocator: Allocator) !*Agent {
         const a = try allocator.create(Agent);
         a.allocator = allocator;
+        a.render_size = DEFAULT_RENDER_SIZE;
         a.text = ArrayList(u21).init(allocator);
-        a.rendered_text = try allocator.alloc(u8, RENDERED_TEXT_WIDTH * RENDERED_TEXT_HEIGHT);
+        a.rendered_text = try allocator.alloc(u8, @intCast(a.render_size.x * a.render_size.y));
         a.font = null;
         a.font_size = DEFAULT_FONT_SIZE;
 
@@ -123,7 +125,7 @@ pub const Agent = struct {
 
         const font_buf = try self.allocator.dupe(u8, buf);
 
-        if (init_font(&font_info, buf.ptr, 0) == 0) {
+        if (init_font(&font_info, font_buf.ptr, 0) == 0) {
             return AgentError.InitFontFailed;
         }
 
@@ -193,7 +195,12 @@ pub const Agent = struct {
         while (i < num_chars) {
             const codepoint = unicode_start + i;
             const glyph_index = find_glyph_index(&font_info, @intCast(codepoint));
-            const packed_char = packed_chars_array[@intCast(i)];
+            var packed_char = packed_chars_array[@intCast(i)];
+            if (codepoint == ' ') {
+                var xadv: i32 = undefined;
+                get_glyph_h_metrics(&font_info, glyph_index, &xadv, null);
+                packed_char.xadvance = @as(f32, @floatFromInt(xadv))*scale;
+            }
             const packed_char_ext: ExtPackedChar = .{
                 .codepoint = @intCast(codepoint),
                 .glyph_index = glyph_index,
@@ -256,6 +263,12 @@ pub const Agent = struct {
         self.allocator.free(font.atlas);
     }
 
+    pub fn resize(self: *Agent, size: Point) !void {
+        self.render_size = size;
+        self.rendered_text = try self.allocator.realloc(self.rendered_text, @intCast(self.render_size.x * self.render_size.y));
+
+    }
+
     pub fn render_text(self: *Agent) !void {
         self.clear_rendered_text();
 
@@ -264,8 +277,13 @@ pub const Agent = struct {
         const scale = font.scale;
         const baseline = @as(f32, @floatFromInt(ascent)) * scale;
 
-        var xpos: f32 = 10;
-        const ypos: f32 = 10;
+        const width = self.render_size.x;
+        const height = self.render_size.y;
+
+        const padding = 10;
+
+        var xpos: f32 = padding;
+        const ypos: f32 = padding;
 
         var i: usize = 0;
         while (i < self.text.items.len) {
@@ -287,12 +305,12 @@ pub const Agent = struct {
                 var yrender: i32 = @intFromFloat(ypos + baseline + yoff);
                 var yatlas = packed_char.packed_char.y0;
                 while (yatlas < yatlas_end) {
-                    if (yrender >= RENDERED_TEXT_HEIGHT or yrender < 0) break;
+                    if (yrender >= (height - padding) or yrender < 0) break;
                     var xrender: i32 = @intFromFloat(xpos + xoff);
                     var xatlas = packed_char.packed_char.x0;
                     while (xatlas < xatlas_end) {
-                        if (xrender >= RENDERED_TEXT_WIDTH or xrender < 0) break;
-                        self.rendered_text[@intCast(yrender * RENDERED_TEXT_WIDTH + xrender)] |= font.atlas[@intCast(yatlas * font.atlas_size.x + xatlas)];
+                        if (xrender >= (width - padding) or xrender < 0) break;
+                        self.rendered_text[@intCast(yrender * width + xrender)] |= font.atlas[@intCast(yatlas * font.atlas_size.x + xatlas)];
 
                         xrender += 1;
                         xatlas += 1;
@@ -354,7 +372,7 @@ pub const Agent = struct {
 
     fn clear_rendered_text(self: *Agent) void {
         var i: usize = 0;
-        while (i < RENDERED_TEXT_WIDTH * RENDERED_TEXT_HEIGHT) {
+        while (i < self.render_size.x * self.render_size.y) {
             self.rendered_text[i] = 0;
             i += 1;
         }
@@ -439,6 +457,8 @@ test "Agent" {
     const agent = try Agent.init(alloc);
     defer agent.deinit();
 
+    try agent.resize(.{ .x = 400, .y = 100 });
+
     const font_data = @embedFile("./DigitaltsLime.ttf");
 
     const font = try agent.load_font(font_data);
@@ -450,7 +470,7 @@ test "Agent" {
     try agent.add_text(text);
     try agent.render_text();
 
-    _ = stbi_write_png("text.png", RENDERED_TEXT_WIDTH, RENDERED_TEXT_HEIGHT, 1, agent.rendered_text.ptr, 0);
+    _ = stbi_write_png("text.png", agent.render_size.x, agent.render_size.y, 1, agent.rendered_text.ptr, 0);
 }
 
 test "HashMaps with KeyMap keys" {

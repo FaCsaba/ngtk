@@ -6,30 +6,24 @@ import { NgtkMeta } from "./ngtk-meta";
 const firaSansBuffer = fetch(FiraSans).then(res => res.arrayBuffer());
 const firaSans = parse(await firaSansBuffer);
 
+type OpenTypeGlyphI = InstanceType<typeof OpenTypeGlyph>;
+type OpenTypeFontI = InstanceType<typeof OpenTypeFont>;
+
 export class Font {
-    private font: InstanceType<typeof OpenTypeFont>;
+    private font: OpenTypeFontI;
+
     constructor(private glyphs: Glyph[], name: string) {
-        let gs: InstanceType<typeof OpenTypeGlyph>[] = [];
-        gs.push(new OpenTypeGlyph({
-            name: ".notdef",
-            path: OpenTypePath.fromSVG("M25,25 L225,25 L225,225 L25,225 Z", { scale: 4 }),
-            advanceWidth: 1000,
-        }))
-        const newGlyphs = glyphs.map((g, i) => {
+        let gs: OpenTypeGlyphI[] = Object.values<OpenTypeGlyphI>(firaSans.glyphs.glyphs).filter(g => g.index === 0 || g.unicode < 256);
+        glyphs.forEach((g, i) => {
             const paths = Array.from(g.svg?.querySelectorAll("path") ?? []);
             const path = paths.reduce((d, path) => d + " " + path.getAttribute("d"), "");
-            return new OpenTypeGlyph({
+            gs.push(new OpenTypeGlyph({
                 name: "g" + i,
                 unicode: 0xE000 + i,
                 path: OpenTypePath.fromSVG(path, { scale: 4 }),
                 advanceWidth: 600,
-            });
+            }));
         });
-
-        gs = gs.concat(newGlyphs);
-
-        debugger;
-        gs = gs.concat(Object.values<InstanceType<typeof OpenTypeGlyph>>(firaSans.glyphs.glyphs).filter(g => g.unicode < 256));
 
         this.font = new OpenTypeFont({
             familyName: name,

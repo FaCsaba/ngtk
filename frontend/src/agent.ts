@@ -8,6 +8,11 @@ interface Slice {
     len: number;
 }
 
+interface Size {
+    width: number;
+    height: number;
+}
+
 export interface AgentExports {
     agent_init: () => ptr;
     agent_deinit: () => void;
@@ -18,20 +23,19 @@ export interface AgentExports {
     agent_has_key: (agent: ptr, mod: number, key: number) => boolean;
     agent_remove_char: (agent: ptr) => void;
     agent_render_text: (agent: ptr) => ptr;
+    agent_resize: (agent: ptr, width: number, height: number) => void;
     malloc: (size: number) => ptr;
     free: (buf: ptr) => void;
     memory: WebAssembly.Memory;
 }
 
 export class AgentWasm {
-    public static readonly RENDERED_TEXT_WIDTH = 420;
-    public static readonly RENDERED_TEXT_HEIGHT = 420;
-
     private wasm!: WebAssembly.Instance;
     private agentPtr!: number;
     private exports!: AgentExports;
     private fontAlloc?: Slice;
     private ctx?: CanvasRenderingContext2D;
+    private renderSize: Size = { width: 420, height: 420 };
 
     private constructor() { }
 
@@ -85,10 +89,16 @@ export class AgentWasm {
     }
 
     public renderText(): void {
-        this.ctx?.clearRect(0, 0, AgentWasm.RENDERED_TEXT_WIDTH, AgentWasm.RENDERED_TEXT_HEIGHT)
+        this.ctx?.clearRect(0, 0, this.renderSize.width, this.renderSize.height)
         const imgPtr = this.exports.agent_render_text(this.agentPtr);
         const img = this.imgFromAlpha(imgPtr);
         this.ctx?.putImageData(img, 0, 0);
+    }
+
+    public resize({ width, height }: Size): void {
+        this.exports.agent_resize(this.agentPtr, width, height);
+        this.renderSize = { width, height };
+        this.renderText();
     }
 
     public loadFont(font: ArrayBuffer): void {
@@ -112,7 +122,7 @@ export class AgentWasm {
     }
 
     private imgFromAlpha(imgPtr: ptr): ImageData {
-        const imgAlpha = new Uint8Array(this.exports.memory.buffer, imgPtr, AgentWasm.RENDERED_TEXT_HEIGHT * AgentWasm.RENDERED_TEXT_WIDTH);
+        const imgAlpha = new Uint8Array(this.exports.memory.buffer, imgPtr, this.renderSize.width * this.renderSize.height);
         const imgData = new Uint8ClampedArray(imgAlpha.length * 4);
         const bgHsl = getComputedStyle(document.body).getPropertyValue('--card');
         const bg = hslToRgb(bgHsl);
@@ -127,7 +137,7 @@ export class AgentWasm {
             imgData[i * 4 + 2] = (1 - alpha) * bg.b + alpha * fg.b; // b
             imgData[i * 4 + 3] = 255;                               // a
         }
-        return new ImageData(imgData, AgentWasm.RENDERED_TEXT_WIDTH, AgentWasm.RENDERED_TEXT_HEIGHT);
+        return new ImageData(imgData, this.renderSize.width, this.renderSize.height);
     }
 
     private getString(str_ptr: number): string {
@@ -145,7 +155,7 @@ export class AgentWasm {
 
 function hslToRgb(hsl: string) {
     const [hstr, sstr, lstr] = hsl.split(" ")
-    const h = Number(hstr);
+    const h = Number(hstr.split("hsl(")[1]);
     const s = Number(sstr.split("%")[0]) / 100;
     const l = Number(lstr.split("%")[0]) / 100;
 

@@ -78,3 +78,8 @@ pub export fn agent_render_text(agent: *Agent) [*c]u8 {
     agent.render_text() catch |err| std.debug.panic("Failed to render text: {s}\x00", .{@errorName(err)});
     return agent.rendered_text.ptr;
 }
+
+pub export fn agent_resize(agent: *Agent, width: i32, height: i32) void {
+    if (width < 0 or height < 0) std.debug.panic("Incorrect size\x00", .{});
+    agent.resize(.{ .x = width, .y = height }) catch |err| std.debug.panic("Failed to resize render buffer: {s}\x00", .{@errorName(err)});
+}
