@@ -22,6 +22,24 @@ pub fn build(b: *std.Build) void {
     wasm.addCSourceFile(.{ .file = b.path("src/stb_shim.c") });
     wasm.root_module.addCMacro("AGENT_WASM", "");
 
+    b.installArtifact(wasm);
+
+    const desktop = b.addExecutable(.{
+        .name = "desktop",
+        .root_source_file = b.path("src/desktop_app.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
+    desktop.linkLibC();
+    desktop.addIncludePath(b.path("libs"));
+    desktop.addCSourceFile(.{ .file = b.path("src/stb_shim.c") });
+
+    b.installArtifact(desktop);
+
+    const run_desktop = b.addRunArtifact(desktop);
+    const run_desktop_step = b.step("run_desktop", "Run the desktop app");
+    run_desktop_step.dependOn(&run_desktop.step);
+
     const agent_test = b.addTest(.{
         .name = "Agent test",
         .root_source_file = b.path("src/agent.zig"),
@@ -36,6 +54,4 @@ pub fn build(b: *std.Build) void {
 
     const test_step = b.step("test", "Run unit tests");
     test_step.dependOn(&ins_agent_test.step);
-
-    b.installArtifact(wasm);
 }
