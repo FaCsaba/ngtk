@@ -98,7 +98,7 @@ pub const Agent = struct {
         const table = find_table(font_buf, "meta") orelse return null;
         var ngtk = find_in_meta_table(table, "Ngtk") orelse return null;
         const version = ngtk[0];
-        if (version != 1) std.debug.panic("Expected ngtk version 1, got {} instead.\x00", .{version});
+        if (version != 1) std.debug.panic("Expected ngtk version 1, got {} instead.", .{version});
         const key_map_length: usize = @intCast(get_u32(ngtk[1..]));
 
         const key_maps_offset: usize = 5;
