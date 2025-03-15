@@ -2,7 +2,7 @@ const std = @import("std");
 const a = @import("./agent.zig");
 const Agent = a.Agent;
 const Font = a.Font;
-const color_from_u32 = a.color_from_u32;
+const Color = a.Color;
 
 pub extern fn _print(msg: [*c]const u8, len: usize) void;
 pub extern fn _panic(msg: [*c]const u8, len: usize) noreturn;
@@ -63,8 +63,8 @@ pub export fn agent_add_text(agent: *Agent, str: [*c]u8, len: usize) void {
     agent.add_text(str[0..len]) catch |err| std.debug.panic("Failed to send text to agent: {s}", .{@errorName(err)});
 }
 
-pub export fn agent_put_key(agent: *Agent, mod: u8, key: u16) void {
-    agent.put_key(mod, key) catch |err| std.debug.panic("Failed to send key to agent: {s}", .{@errorName(err)});
+pub export fn agent_put_key(agent: *Agent, mod: u8, key: u16) bool {
+    return agent.put_key(mod, key) catch |err| std.debug.panic("Failed to send key to agent: {s}", .{@errorName(err)});
 }
 
 pub export fn agent_has_key(agent: *Agent, mod: u8, key: u16) bool {
@@ -72,7 +72,7 @@ pub export fn agent_has_key(agent: *Agent, mod: u8, key: u16) bool {
 }
 
 pub export fn agent_set_color(agent: *Agent, bg: u32, fg: u32) void {
-    agent.set_color(color_from_u32(bg), color_from_u32(fg));
+    agent.set_color(Color.from_u32(bg), Color.from_u32(fg));
 }
 
 pub export fn agent_remove_char(agent: *Agent) void {

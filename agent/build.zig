@@ -19,9 +19,17 @@ pub fn build(b: *std.Build) void {
     wasm.entry = .disabled;
     wasm.linkLibC();
     wasm.addIncludePath(b.path("libs"));
-    wasm.addCSourceFile(.{ .file = b.path("src/stb_shim.c") });
+    wasm.addCSourceFile(.{ .file = b.path("src/stb_wasm_shim.c") });
 
     b.installArtifact(wasm);
+
+    const raylib_dep = b.dependency("raylib-zig", .{
+        .target = target,
+        .optimize = optimize,
+    });
+
+    const raylib = raylib_dep.module("raylib");
+    const raylib_artifact = raylib_dep.artifact("raylib");
 
     const desktop = b.addExecutable(.{
         .name = "desktop",
@@ -31,7 +39,9 @@ pub fn build(b: *std.Build) void {
     });
     desktop.linkLibC();
     desktop.addIncludePath(b.path("libs"));
-    desktop.addCSourceFile(.{ .file = b.path("src/stb_shim.c") });
+    desktop.addCSourceFile(.{ .file = b.path("src/stb_desktop_shim.c") });
+    desktop.linkLibrary(raylib_artifact);
+    desktop.root_module.addImport("raylib", raylib);
 
     b.installArtifact(desktop);
 
@@ -47,7 +57,7 @@ pub fn build(b: *std.Build) void {
     });
     agent_test.linkLibC();
     agent_test.addIncludePath(b.path("libs"));
-    agent_test.addCSourceFile(.{ .file = b.path("src/stb_shim.c") });
+    agent_test.addCSourceFile(.{ .file = b.path("src/stb_wasm_shim.c") });
 
     const ins_agent_test = b.addRunArtifact(agent_test);
 

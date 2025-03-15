@@ -32,9 +32,13 @@ const AgentError = error{
     CharacterNotFound,
 };
 
-const Point = struct {
+pub const Point = struct {
     x: i32 = 0,
     y: i32 = 0,
+
+    pub fn init(x: i32, y: i32) Point {
+        return .{ .x = x, .y = y };
+    }
 };
 
 const BoundingBox = struct {
@@ -48,7 +52,7 @@ const ExtPackedChar = struct {
     codepoint: u21,
 };
 
-const KeyMap = struct {
+pub const KeyMap = struct {
     mod: u8,
     key: u16,
 };
@@ -68,17 +72,26 @@ pub const Font = struct {
     key_mapping: ?HashMap(KeyMap, u21),
 };
 
-const Color = struct {
+pub const Color = struct {
     r: u8 = 0,
     g: u8 = 0,
     b: u8 = 0,
     a: u8 = 0,
+
+    pub fn from_u32(c: u32) Color {
+        return .{
+            .r = @intCast((c >> 24) & 0xFF),
+            .g = @intCast((c >> 16) & 0xFF),
+            .b = @intCast((c >> 8) & 0xFF),
+            .a = @intCast((c >> 0) & 0xFF),
+        };
+    }
 };
 
 const DEFAULT_RENDER_SIZE: Point = .{ .x = 420, .y = 420 };
 const DEFAULT_FONT_SIZE: f32 = 24;
-const DEFAULT_FG_COLOR = Color{ .r = 0xFF, .g = 0xFF, .b = 0xFF, .a = 0xFF };
-const DEFAULT_BG_COLOR = Color{ .r = 0x00, .g = 0x00, .b = 0x00, .a = 0xFF };
+const DEFAULT_FG_COLOR = Color.from_u32(0xFFFFFFFF);
+const DEFAULT_BG_COLOR = Color.from_u32(0x000000FF);
 const COLOR_SIZE = @sizeOf(@TypeOf(DEFAULT_FG_COLOR));
 
 // TODO: Find a way to render svgs with color.
@@ -367,12 +380,13 @@ pub const Agent = struct {
         }
     }
 
-    pub fn put_key(self: *Agent, mod: u8, key: u16) !void {
-        const font = self.font orelse return;
-        const key_mapping = font.key_mapping orelse return;
+    pub fn put_key(self: *Agent, mod: u8, key: u16) !bool {
+        const font = self.font orelse return false;
+        const key_mapping = font.key_mapping orelse return false;
         const km = KeyMap{ .mod = mod, .key = key };
-        const char = key_mapping.get(km) orelse return;
+        const char = key_mapping.get(km) orelse return false;
         try self.add_char(char);
+        return true;
     }
 
     pub fn has_key(self: *Agent, mod: u8, key: u16) bool {
@@ -405,15 +419,6 @@ pub const Agent = struct {
         }
     }
 };
-
-pub fn color_from_u32(c: u32) Color {
-    return .{
-        .r = @intCast((c >> 24) & 0xFF),
-        .g = @intCast((c >> 16) & 0xFF),
-        .b = @intCast((c >> 8) & 0xFF),
-        .a = @intCast((c >> 0) & 0xFF),
-    };
-}
 
 fn get_u16(font_buf: []const u8) u16 {
     return (@as(u16, @intCast(font_buf[0])) << 8) +
