@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Input } from "./ui/input";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "./ui/accordion";
-import { Button, buttonVariants } from "./ui/button";
+import { Button } from "./ui/button";
 import { NeographyPreviewer } from "./neography-preview.component";
 import { useAgent } from "./agent-provider.component";
 import { GlyphCreator } from "./glyph-creator.component";
@@ -65,6 +65,15 @@ export const NeographyCreator = () => {
         setStep(NGStep.Preview);
     }
 
+    function onDownload(): void {
+        if (!font) return;
+        const href = window.URL.createObjectURL(new Blob([font.encode()]));
+        const link = document.createElement("a");
+        link.href = href;
+        link.download = `${name}.ttf`;
+        link.click();
+    }
+
     if (isLoading) return <h1 className="text-xxl">Loading wasm module...</h1>;
 
     if (error || agent === null) {
@@ -122,7 +131,7 @@ export const NeographyCreator = () => {
                     </div>
                     <div className="flex gap-2">
                         <Button disabled={!canStepTo(NGStep.GlyphCreation)} onClick={() => setStep(NGStep.GlyphCreation)}>Previous</Button>
-                        <Button disabled={!canStepTo(NGStep.Preview)} onClick={() => onChangeStepToPreview()}>Next</Button>
+                        <Button disabled={!canStepTo(NGStep.Preview)} onClick={onChangeStepToPreview}>Next</Button>
                     </div>
                 </AccordionContent>
             </AccordionItem>
@@ -132,7 +141,7 @@ export const NeographyCreator = () => {
                     <NeographyPreviewer agent={agent} />
                     <div className="flex gap-2">
                         <Button disabled={!canStepTo(NGStep.KeyMapping)} onClick={() => setStep(NGStep.KeyMapping)}>Previous</Button>
-                        <a className={buttonVariants()} download={name+".ttf"} href={window.URL.createObjectURL(new Blob([font?.encode() ?? ""]))}>Download</a>
+                        <Button onClick={onDownload}>Download</Button>
                     </div>
                 </AccordionContent>
             </AccordionItem>

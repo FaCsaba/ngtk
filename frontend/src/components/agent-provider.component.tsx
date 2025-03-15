@@ -21,7 +21,6 @@ export function AgentProvider({ children }: { children: React.ReactNode }) {
     const [isLoading, setIsLoading] = useState<boolean>(false);
 
     useEffect(() => {
-        if (isLoading) return;
         setIsLoading(true);
         AgentWasm.new().then((a) => {
             setAgent(a);
@@ -43,7 +42,7 @@ export function useAgent() {
     const context = useContext(AgentProviderContext);
 
     if (context === undefined)
-        throw new Error("useAgent must be used within a ThemeProvider");
+        throw new Error("useAgent must be used within an AgentProvider");
 
     return context;
 }

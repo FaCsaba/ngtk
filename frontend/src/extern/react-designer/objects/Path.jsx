@@ -9,13 +9,13 @@ import BezierEditor from '../editors/BezierEditor';
 export default class Path extends Vector {
   static meta = {
     initial: {
-      fill: "white",
+      fill: "var(--card-foreground)",
       closed: false,
       rotate: 0,
       moveX: 0,
       moveY: 0,
       path: [],
-      stroke: "white",
+      stroke: "var(--card-foreground)",
       strokeWidth: 1
     },
     mode: modes.DRAW_PATH,

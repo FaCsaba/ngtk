@@ -20,7 +20,6 @@ pub fn build(b: *std.Build) void {
     wasm.linkLibC();
     wasm.addIncludePath(b.path("libs"));
     wasm.addCSourceFile(.{ .file = b.path("src/stb_shim.c") });
-    wasm.root_module.addCMacro("AGENT_WASM", "");
 
     b.installArtifact(wasm);
 

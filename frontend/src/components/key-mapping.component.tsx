@@ -14,12 +14,14 @@ export function KeyMapping({ glyph, setGlyph, className, ...props }: React.Compo
     const [isRecording, setIsRecording] = useState(false);
 
     function onKeyDown(e: React.KeyboardEvent<HTMLDivElement>) {
+        e.preventDefault();
         if (e.key === "Enter") {
             setIsRecording(true);
             return;
         }
         if (!isRecording) return;
         const keyMap = getKeyMapFromKeyEvent(e);
+        if (!keyMap) return;
         setGlyph({ ...glyph, keyMap });
         setIsRecording(false);
     }

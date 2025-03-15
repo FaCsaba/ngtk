@@ -1,12 +1,12 @@
 #ifndef QSORT_H
 #define QSORT_H
 
+#include <stddef.h>
+#include <string.h>
+
 void qsort(void * v, size_t count, size_t _size, int (*comp)(const void*,const void*));
 
 #ifdef QSORT_IMPLEMENTATION
-
-#include <stddef.h>
-#include <string.h>
 
 void swap(void *a, void *b, size_t size) {
     unsigned char temp[size];

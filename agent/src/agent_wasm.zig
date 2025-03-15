@@ -2,6 +2,7 @@ const std = @import("std");
 const a = @import("./agent.zig");
 const Agent = a.Agent;
 const Font = a.Font;
+const color_from_u32 = a.color_from_u32;
 
 pub extern fn _print(msg: [*c]const u8, len: usize) void;
 pub extern fn _panic(msg: [*c]const u8, len: usize) noreturn;
@@ -70,13 +71,17 @@ pub export fn agent_has_key(agent: *Agent, mod: u8, key: u16) bool {
     return agent.has_key(mod, key);
 }
 
+pub export fn agent_set_color(agent: *Agent, bg: u32, fg: u32) void {
+    agent.set_color(color_from_u32(bg), color_from_u32(fg));
+}
+
 pub export fn agent_remove_char(agent: *Agent) void {
     agent.remove_char();
 }
 
 pub export fn agent_render_text(agent: *Agent) [*c]u8 {
     agent.render_text() catch |err| std.debug.panic("Failed to render text: {s}", .{@errorName(err)});
-    return agent.rendered_text.ptr;
+    return agent.render_buffer.ptr;
 }
 
 pub export fn agent_resize(agent: *Agent, width: i32, height: i32) void {

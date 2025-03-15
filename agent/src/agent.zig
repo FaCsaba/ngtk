@@ -68,28 +68,40 @@ pub const Font = struct {
     key_mapping: ?HashMap(KeyMap, u21),
 };
 
+const Color = struct {
+    r: u8 = 0,
+    g: u8 = 0,
+    b: u8 = 0,
+    a: u8 = 0,
+};
+
 const DEFAULT_RENDER_SIZE: Point = .{ .x = 420, .y = 420 };
 const DEFAULT_FONT_SIZE: f32 = 24;
+const DEFAULT_FG_COLOR = Color{ .r = 0xFF, .g = 0xFF, .b = 0xFF, .a = 0xFF };
+const DEFAULT_BG_COLOR = Color{ .r = 0x00, .g = 0x00, .b = 0x00, .a = 0xFF };
+const COLOR_SIZE = @sizeOf(@TypeOf(DEFAULT_FG_COLOR));
 
-// TODO: Introduce fallback font for when the user types something unexpected,
-//       Maybe allow chaining to their default ime.
 // TODO: Find a way to render svgs with color.
 pub const Agent = struct {
     allocator: Allocator,
     render_size: Point,
     text: ArrayList(u21),
-    rendered_text: []u8,
+    render_buffer: []u8,
     font: ?Font,
     font_size: f32,
+    fg_color: Color,
+    bg_color: Color,
 
     pub fn init(allocator: Allocator) !*Agent {
         const a = try allocator.create(Agent);
         a.allocator = allocator;
         a.render_size = DEFAULT_RENDER_SIZE;
         a.text = ArrayList(u21).init(allocator);
-        a.rendered_text = try allocator.alloc(u8, @intCast(a.render_size.x * a.render_size.y));
+        a.render_buffer = try allocator.alloc(u8, @intCast(a.render_size.x * a.render_size.y * COLOR_SIZE));
         a.font = null;
         a.font_size = DEFAULT_FONT_SIZE;
+        a.fg_color = DEFAULT_FG_COLOR;
+        a.bg_color = DEFAULT_BG_COLOR;
 
         return a;
     }
@@ -110,9 +122,9 @@ pub const Agent = struct {
         while (i < key_map_length) {
             const loc: usize = key_maps_offset + key_map_size * i;
             const mod = ngtk[loc];
-            const key = get_u16(ngtk[(loc+1)..]);
-            const char: u21 = @intCast(get_u32(ngtk[(loc+3)..]));
-            const key_map = KeyMap { .mod = mod, .key = key };
+            const key = get_u16(ngtk[(loc + 1)..]);
+            const char: u21 = @intCast(get_u32(ngtk[(loc + 3)..]));
+            const key_map = KeyMap{ .mod = mod, .key = key };
             try key_mapping.put(key_map, char);
             i += 1;
         }
@@ -173,7 +185,7 @@ pub const Agent = struct {
         ) == 0) return AgentError.Packing;
 
         if (key_mapping_count > 0) {
-            var km_range = PackRange {
+            var km_range = PackRange{
                 .font_size = point_size(self.font_size),
                 .first_unicode_codepoint_in_range = @intCast(0xE000),
                 .num_chars = @intCast(key_mapping_count),
@@ -199,7 +211,7 @@ pub const Agent = struct {
             if (codepoint == ' ') {
                 var xadv: i32 = undefined;
                 get_glyph_h_metrics(&font_info, glyph_index, &xadv, null);
-                packed_char.xadvance = @as(f32, @floatFromInt(xadv))*scale;
+                packed_char.xadvance = @as(f32, @floatFromInt(xadv)) * scale;
             }
             const packed_char_ext: ExtPackedChar = .{
                 .codepoint = @intCast(codepoint),
@@ -264,9 +276,9 @@ pub const Agent = struct {
     }
 
     pub fn resize(self: *Agent, size: Point) !void {
-        self.render_size = size;
-        self.rendered_text = try self.allocator.realloc(self.rendered_text, @intCast(self.render_size.x * self.render_size.y));
-
+        defer self.render_size = size;
+        if (size.x <= self.render_size.x and size.y <= self.render_size.y) return;
+        self.render_buffer = try self.allocator.realloc(self.render_buffer, @intCast(size.x * size.y * COLOR_SIZE));
     }
 
     pub fn render_text(self: *Agent) !void {
@@ -288,7 +300,7 @@ pub const Agent = struct {
         var i: usize = 0;
         while (i < self.text.items.len) {
             const char = self.text.items[i];
-            const packed_char = font.packed_chars.get(char) orelse font.packed_chars.get(32) orelse return AgentError.CharacterNotFound;
+            const packed_char = font.packed_chars.get(char) orelse font.packed_chars.get(1) orelse return AgentError.CharacterNotFound;
 
             const xadv: f32 = packed_char.packed_char.xadvance;
             const xoff: f32 = packed_char.packed_char.xoff;
@@ -310,7 +322,14 @@ pub const Agent = struct {
                     var xatlas = packed_char.packed_char.x0;
                     while (xatlas < xatlas_end) {
                         if (xrender >= (width - padding) or xrender < 0) break;
-                        self.rendered_text[@intCast(yrender * width + xrender)] |= font.atlas[@intCast(yatlas * font.atlas_size.x + xatlas)];
+                        const alpha: f64 = @as(f64, @floatFromInt(font.atlas[@intCast(yatlas * font.atlas_size.x + xatlas)])) / 0xFF;
+                        // TODO: There might be a faster solution, but still faster than doing this on js lol
+                        const render_i: usize = @intCast((yrender * width + xrender) * COLOR_SIZE);
+                        // Alphablending the background with the foreground
+                        self.render_buffer[render_i + 0] = @intFromFloat((1 - alpha) * @as(f64, @floatFromInt(self.render_buffer[render_i + 0])) + alpha * @as(f64, @floatFromInt(self.fg_color.r)));
+                        self.render_buffer[render_i + 1] = @intFromFloat((1 - alpha) * @as(f64, @floatFromInt(self.render_buffer[render_i + 1])) + alpha * @as(f64, @floatFromInt(self.fg_color.g)));
+                        self.render_buffer[render_i + 2] = @intFromFloat((1 - alpha) * @as(f64, @floatFromInt(self.render_buffer[render_i + 2])) + alpha * @as(f64, @floatFromInt(self.fg_color.b)));
+                        self.render_buffer[render_i + 3] = 0xFF;
 
                         xrender += 1;
                         xatlas += 1;
@@ -351,7 +370,7 @@ pub const Agent = struct {
     pub fn put_key(self: *Agent, mod: u8, key: u16) !void {
         const font = self.font orelse return;
         const key_mapping = font.key_mapping orelse return;
-        const km = KeyMap { .mod = mod, .key = key };
+        const km = KeyMap{ .mod = mod, .key = key };
         const char = key_mapping.get(km) orelse return;
         try self.add_char(char);
     }
@@ -359,25 +378,42 @@ pub const Agent = struct {
     pub fn has_key(self: *Agent, mod: u8, key: u16) bool {
         const font = self.font orelse return false;
         const key_mapping = font.key_mapping orelse return false;
-        const km = KeyMap { .mod = mod, .key = key };
+        const km = KeyMap{ .mod = mod, .key = key };
         return key_mapping.contains(km);
+    }
+
+    pub fn set_color(self: *Agent, bg: Color, fg: Color) void {
+        self.bg_color = bg;
+        self.fg_color = fg;
     }
 
     pub fn deinit(self: *Agent) void {
         if (self.font) |font| self.unload_font(font);
         self.text.deinit();
-        self.allocator.free(self.rendered_text);
+        self.allocator.free(self.render_buffer);
         self.allocator.destroy(self);
     }
 
     fn clear_rendered_text(self: *Agent) void {
         var i: usize = 0;
-        while (i < self.render_size.x * self.render_size.y) {
-            self.rendered_text[i] = 0;
-            i += 1;
+        while (i < self.render_buffer.len) {
+            self.render_buffer[i + 0] = self.bg_color.r;
+            self.render_buffer[i + 1] = self.bg_color.g;
+            self.render_buffer[i + 2] = self.bg_color.b;
+            self.render_buffer[i + 3] = self.bg_color.a;
+            i += COLOR_SIZE;
         }
     }
 };
+
+pub fn color_from_u32(c: u32) Color {
+    return .{
+        .r = @intCast((c >> 24) & 0xFF),
+        .g = @intCast((c >> 16) & 0xFF),
+        .b = @intCast((c >> 8) & 0xFF),
+        .a = @intCast((c >> 0) & 0xFF),
+    };
+}
 
 fn get_u16(font_buf: []const u8) u16 {
     return (@as(u16, @intCast(font_buf[0])) << 8) +
@@ -470,7 +506,7 @@ test "Agent" {
     try agent.add_text(text);
     try agent.render_text();
 
-    _ = stbi_write_png("text.png", agent.render_size.x, agent.render_size.y, 1, agent.rendered_text.ptr, 0);
+    _ = stbi_write_png("text.png", agent.render_size.x, agent.render_size.y, 4, agent.render_buffer.ptr, 0);
 }
 
 test "HashMaps with KeyMap keys" {
@@ -479,9 +515,9 @@ test "HashMaps with KeyMap keys" {
     var hm = HashMap(KeyMap, u21).init(alloc);
     defer hm.deinit();
 
-    const km1 = KeyMap { .mod = 0, .key = 69 };
+    const km1 = KeyMap{ .mod = 0, .key = 69 };
     try hm.put(km1, 34);
 
-    const km2 = KeyMap { .mod = 0, .key = 69 };
+    const km2 = KeyMap{ .mod = 0, .key = 69 };
     try std.testing.expect(hm.get(km2) == 34);
 }
