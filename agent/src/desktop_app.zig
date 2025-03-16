@@ -92,7 +92,7 @@ const App = struct {
                 log.err("Failed to load neography, got null ptr for file path", .{});
                 return;
             }
-            log.info("Dropped new neography file: {s}\n", .{file_path});
+            log.info("Dropped file: {s}\n", .{file_path});
             const file = std.fs.openFileAbsoluteZ(file_path, .{
                 .allow_ctty = false,
                 .lock = .none,
@@ -100,6 +100,7 @@ const App = struct {
                 .mode = .read_only,
             }) catch |err| return log_error("Failed to load neography, couldn't open dropped file", err);
             const content = file.readToEndAlloc(self.allocator, std.math.maxInt(usize)) catch |err| return log_error("Failed to load neography, coudn't read dropped file", err);
+            // TODO: Loading font breaks when loading an incorrect file, ex.: .woff
             _ = self.agent.load_font(content) catch |err| return log_error("Failed to load neography", err);
             self.dirty = .new_neography;
         }
@@ -113,6 +114,10 @@ const App = struct {
             .backspace => {
                 self.agent.remove_char();
                 self.dirty = .key_pressed;
+            },
+            .enter => {
+                // Will possibly have a different purpose as well
+                self.agent.add_char('\n') catch |err| return log_error("Failed to put unicode newline character to agent", err);
             },
             else => {
                 // shortcuts
@@ -169,7 +174,7 @@ const App = struct {
             rl.updateTexture(self.texture, self.agent.render_buffer.ptr);
         }
         self.texture.draw(0, 0, rl.Color.white);
-        rl.drawFPS(50, 50);
+        rl.drawFPS(screen_width - 150, 50);
     }
 
     fn get_key_mods() u8 {

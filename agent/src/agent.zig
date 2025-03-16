@@ -303,6 +303,7 @@ pub const Agent = struct {
         const font = self.font orelse return AgentError.FontNotFound;
         const ascent = font.ascent;
         const scale = font.scale;
+        const yadv = @as(f32, @floatFromInt(font.vert_adv)) * scale;
         const baseline = @as(f32, @floatFromInt(ascent)) * scale;
 
         const width = self.render_size.x;
@@ -311,7 +312,7 @@ pub const Agent = struct {
         const padding = 10;
 
         var xpos: f32 = padding;
-        const ypos: f32 = padding;
+        var ypos: f32 = padding;
 
         var i: usize = 0;
         while (i < self.text.items.len) {
@@ -355,13 +356,16 @@ pub const Agent = struct {
                 }
             }
 
-            // TODO: Support newline character.
-
-            xpos += xadv;
-            const next_char_maybe: ?u21 = if (i + 1 < self.text.items.len) self.text.items[i + 1] else null;
-            if (next_char_maybe) |next_char| {
-                const kern = @as(f32, @floatFromInt(get_glyph_kern_advance(&font.font_info, char, next_char))) * scale;
-                xpos += kern;
+            if (char == '\n') {
+                ypos += yadv;
+                xpos = padding;
+            } else {
+                xpos += xadv;
+                const next_char_maybe: ?u21 = if (i + 1 < self.text.items.len) self.text.items[i + 1] else null;
+                if (next_char_maybe) |next_char| {
+                    const kern = @as(f32, @floatFromInt(get_glyph_kern_advance(&font.font_info, char, next_char))) * scale;
+                    xpos += kern;
+                }
             }
             i += 1;
         }
