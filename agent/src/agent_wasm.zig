@@ -39,7 +39,7 @@ pub export fn __assert_fail(assertion: [*c]const u8, file: [*c]const u8, line: c
 }
 
 pub export fn agent_init() *Agent {
-    return Agent.init(std.heap.wasm_allocator) catch std.debug.panic("Failed to init Agent", .{});
+    return Agent.init(std.heap.wasm_allocator, .{}) catch std.debug.panic("Failed to init Agent", .{});
 }
 
 pub export fn agent_deinit(agent: *Agent) void {

@@ -88,11 +88,14 @@ pub const Color = struct {
     }
 };
 
-const DEFAULT_RENDER_SIZE: Point = .{ .x = 420, .y = 420 };
-const DEFAULT_FONT_SIZE: f32 = 24;
-const DEFAULT_FG_COLOR = Color.from_u32(0xFFFFFFFF);
-const DEFAULT_BG_COLOR = Color.from_u32(0x000000FF);
-const COLOR_SIZE = @sizeOf(@TypeOf(DEFAULT_FG_COLOR));
+const COLOR_SIZE = 4;
+
+pub const AgentInitExt = struct {
+    render_size: Point = .{ .x = 420, .y = 420 },
+    font_size: f32 = 24,
+    fg_color: Color = Color.from_u32(0xFFFFFFFF),
+    bg_color: Color = Color.from_u32(0x000000FF),
+};
 
 // TODO: Find a way to render svgs with color.
 pub const Agent = struct {
@@ -105,16 +108,16 @@ pub const Agent = struct {
     fg_color: Color,
     bg_color: Color,
 
-    pub fn init(allocator: Allocator) !*Agent {
+    pub fn init(allocator: Allocator, ext: AgentInitExt) !*Agent {
         const a = try allocator.create(Agent);
         a.allocator = allocator;
-        a.render_size = DEFAULT_RENDER_SIZE;
+        a.render_size = ext.render_size;
         a.text = ArrayList(u21).init(allocator);
         a.render_buffer = try allocator.alloc(u8, @intCast(a.render_size.x * a.render_size.y * COLOR_SIZE));
         a.font = null;
-        a.font_size = DEFAULT_FONT_SIZE;
-        a.fg_color = DEFAULT_FG_COLOR;
-        a.bg_color = DEFAULT_BG_COLOR;
+        a.font_size = ext.font_size;
+        a.fg_color = ext.fg_color;
+        a.bg_color = ext.bg_color;
 
         return a;
     }
