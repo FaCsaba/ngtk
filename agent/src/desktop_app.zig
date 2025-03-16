@@ -54,7 +54,7 @@ const App = struct {
         const agent = Agent.init(allocator, ext) catch |err| return log_error("Failed to create Agent", err);
 
         agent.add_text("Hello, World!") catch |err| return log_error("Failed to write initial text", err);
-        _ = agent.load_font(@embedFile("DigitaltsLime.ttf")) catch |err| return log_error("Faild to load initial font", err);
+        _ = agent.load_font(@embedFile("FiraSansMedium.ttf")) catch |err| return log_error("Faild to load initial font", err);
         agent.render_text() catch |err| return log_error("Failed to render initial text", err);
 
         const texture = rl.Texture.fromImage(rl.Image{

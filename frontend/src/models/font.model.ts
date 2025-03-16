@@ -1,4 +1,4 @@
-import FiraSans from "../assets/FiraSansMedium.woff";
+import FiraSans from "../assets/FiraSansMedium.ttf";
 import { Glyph } from "./glyph.model";
 import { Font as OpenTypeFont, Glyph as OpenTypeGlyph, Path as OpenTypePath, parse } from "@/extern/opentype-js/opentype.mjs";
 import { NgtkMeta } from "./ngtk-meta";
