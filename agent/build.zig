@@ -49,9 +49,25 @@ pub fn build(b: *std.Build) void {
     const run_desktop_step = b.step("run_desktop", "Run the desktop app");
     run_desktop_step.dependOn(&run_desktop.step);
 
+    const test_record = b.addExecutable(.{
+        .name = "tests",
+        .root_source_file = b.path("src/tests.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
+    test_record.linkLibC();
+    test_record.addIncludePath(b.path("libs"));
+    test_record.addCSourceFile(.{ .file = b.path("src/stb_desktop_shim.c") });
+
+    b.installArtifact(test_record);
+
+    const run_test_record = b.addRunArtifact(test_record);
+    const run_test_record_step = b.step("record", "Record test cases");
+    run_test_record_step.dependOn(&run_test_record.step);
+
     const agent_test = b.addTest(.{
-        .name = "Agent test",
-        .root_source_file = b.path("src/agent.zig"),
+        .name = "Tests",
+        .root_source_file = b.path("src/tests.zig"),
         .target = target,
         .optimize = optimize,
     });

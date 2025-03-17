@@ -86,6 +86,13 @@ pub const Color = struct {
             .a = @intCast((c >> 0) & 0xFF),
         };
     }
+
+    pub fn to_u32(c: Color) u32 {
+        return (@as(u32, @intCast(c.r)) << 24) +
+            (@as(u32, @intCast(c.g)) << 16) +
+            (@as(u32, @intCast(c.b)) << 8) +
+            (@as(u32, @intCast(c.a)) << 0);
+    }
 };
 
 const COLOR_SIZE = 4;
@@ -167,7 +174,6 @@ pub const Agent = struct {
         get_font_bounding_box(&font_info, &bounding_box.start.x, &bounding_box.start.y, &bounding_box.end.x, &bounding_box.end.y);
 
         // TODO: Find a better way to figure out packing size. Maybe check if we failed packing and try again with a bigger array size.
-        //       This might be why Firefox is failing.
         // TODO: Atlas size should be based on number of characters and the fontsize somehow
         const atlas_size = Point{ .x = 1024, .y = 1024 };
 
@@ -224,11 +230,9 @@ pub const Agent = struct {
             const codepoint = unicode_start + i;
             const glyph_index = find_glyph_index(&font_info, @intCast(codepoint));
             var packed_char = packed_chars_array[@intCast(i)];
-            if (codepoint == ' ') {
-                var xadv: i32 = undefined;
-                get_glyph_h_metrics(&font_info, glyph_index, &xadv, null);
-                packed_char.xadvance = @as(f32, @floatFromInt(xadv)) * scale;
-            }
+            var xadv: i32 = undefined;
+            get_glyph_h_metrics(&font_info, glyph_index, &xadv, null);
+            packed_char.xadvance = @as(f32, @floatFromInt(xadv)) * scale;
             const packed_char_ext: ExtPackedChar = .{
                 .codepoint = @intCast(codepoint),
                 .glyph_index = glyph_index,
@@ -314,9 +318,7 @@ pub const Agent = struct {
         var xpos: f32 = padding;
         var ypos: f32 = padding;
 
-        var i: usize = 0;
-        while (i < self.text.items.len) {
-            const char = self.text.items[i];
+        for (self.text.items, 0..) |char, i| {
             const packed_char = font.packed_chars.get(char) orelse font.packed_chars.get(1) orelse return AgentError.CharacterNotFound;
 
             const xadv: f32 = packed_char.packed_char.xadvance;
@@ -339,13 +341,13 @@ pub const Agent = struct {
                     var xatlas = packed_char.packed_char.x0;
                     while (xatlas < xatlas_end) {
                         if (xrender >= (width - padding) or xrender < 0) break;
-                        const alpha: f64 = @as(f64, @floatFromInt(font.atlas[@intCast(yatlas * font.atlas_size.x + xatlas)])) / 0xFF;
+                        const alpha: f32 = @as(f32, @floatFromInt(font.atlas[@intCast(yatlas * font.atlas_size.x + xatlas)])) / 0xFF;
                         // TODO: There might be a faster solution, but still faster than doing this on js lol
                         const render_i: usize = @intCast((yrender * width + xrender) * COLOR_SIZE);
                         // Alphablending the background with the foreground
-                        self.render_buffer[render_i + 0] = @intFromFloat((1 - alpha) * @as(f64, @floatFromInt(self.render_buffer[render_i + 0])) + alpha * @as(f64, @floatFromInt(self.fg_color.r)));
-                        self.render_buffer[render_i + 1] = @intFromFloat((1 - alpha) * @as(f64, @floatFromInt(self.render_buffer[render_i + 1])) + alpha * @as(f64, @floatFromInt(self.fg_color.g)));
-                        self.render_buffer[render_i + 2] = @intFromFloat((1 - alpha) * @as(f64, @floatFromInt(self.render_buffer[render_i + 2])) + alpha * @as(f64, @floatFromInt(self.fg_color.b)));
+                        self.render_buffer[render_i + 0] = alpha_blend(self.render_buffer[render_i + 0], self.fg_color.r, alpha);
+                        self.render_buffer[render_i + 1] = alpha_blend(self.render_buffer[render_i + 1], self.fg_color.g, alpha);
+                        self.render_buffer[render_i + 2] = alpha_blend(self.render_buffer[render_i + 2], self.fg_color.b, alpha);
                         self.render_buffer[render_i + 3] = 0xFF;
 
                         xrender += 1;
@@ -367,7 +369,6 @@ pub const Agent = struct {
                     xpos += kern;
                 }
             }
-            i += 1;
         }
     }
 
@@ -424,6 +425,15 @@ pub const Agent = struct {
             self.render_buffer[i + 3] = self.bg_color.a;
             i += COLOR_SIZE;
         }
+    }
+
+    inline fn alpha_blend(a: u8, b: u8, alpha: f32) u8 {
+        return @intFromFloat((1 - alpha) * @as(f32, @floatFromInt(a)) + alpha * @as(f32, @floatFromInt(b)));
+    }
+
+    test "alpha_blend" {
+        try std.testing.expectEqual(5, alpha_blend(0, 10, 0.5));
+        try std.testing.expectEqual(247, alpha_blend(240, 255, 0.5));
     }
 };
 
@@ -502,12 +512,12 @@ test "Agent" {
     const stbi_write_png = @cImport(@cInclude("stb/stb_image_write.h")).stbi_write_png;
     const alloc = std.testing.allocator;
 
-    const agent = try Agent.init(alloc);
+    const agent = try Agent.init(alloc, .{});
     defer agent.deinit();
 
     try agent.resize(.{ .x = 400, .y = 100 });
 
-    const font_data = @embedFile("./DigitaltsLime.ttf");
+    const font_data = @embedFile("./FiraSansMedium.ttf");
 
     const font = try agent.load_font(font_data);
 
