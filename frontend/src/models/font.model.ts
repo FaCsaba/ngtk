@@ -10,19 +10,27 @@ type OpenTypeGlyphI = InstanceType<typeof OpenTypeGlyph>;
 type OpenTypeFontI = InstanceType<typeof OpenTypeFont>;
 
 export class Font {
+    private static PrivateUseCharCode = 0xE000;
     private font: OpenTypeFontI;
 
     constructor(private glyphs: Glyph[], name: string) {
-        let gs: OpenTypeGlyphI[] = Object.values<OpenTypeGlyphI>(firaSans.glyphs.glyphs).filter(g => g.index === 0 || g.unicode < 256);
+        let gs: OpenTypeGlyphI[] = Object.values<OpenTypeGlyphI>(firaSans.glyphs.glyphs)
         glyphs.forEach((g, i) => {
             const paths = Array.from(g.svg?.querySelectorAll("path") ?? []);
             const path = paths.reduce((d, path) => d + " " + path.getAttribute("d"), "");
-            gs.push(new OpenTypeGlyph({
+            const unicode = Font.PrivateUseCharCode + i;
+            const glyph = new OpenTypeGlyph({
                 name: "g" + i,
-                unicode: 0xE000 + i,
+                unicode: unicode,
                 path: OpenTypePath.fromSVG(path, { scale: 4 }),
                 advanceWidth: 600,
-            }));
+            }); 
+            const glyphIdx = gs.findIndex((g) => g.unicode === unicode);
+            if (glyphIdx != -1) {
+                gs[glyphIdx] = glyph;
+            } else {
+                gs.push(glyph);
+            }
         });
 
         this.font = new OpenTypeFont({
@@ -47,5 +55,4 @@ export class Font {
         }
         return this.font.toArrayBuffer();
     }
-
 }
