@@ -40,11 +40,6 @@ pub const Point = struct {
     }
 };
 
-const BoundingBox = struct {
-    start: Point = .{},
-    end: Point = .{},
-};
-
 const ExtPackedChar = struct {
     packed_char: PackedChar,
     glyph_index: i32,
