@@ -16,7 +16,6 @@ const pack_end = tt.stbtt_PackEnd;
 const get_font_v_metrics = tt.stbtt_GetFontVMetrics;
 const scale_for_mapping_em_to_pixels = tt.stbtt_ScaleForMappingEmToPixels;
 const point_size = tt.STBTT_POINT_SIZE;
-const get_font_bounding_box = tt.stbtt_GetFontBoundingBox;
 const find_glyph_index = tt.stbtt_FindGlyphIndex;
 const get_glyph_box = tt.stbtt_GetGlyphBox;
 const pack_set_skip_missing_codepoints = tt.stbtt_PackSetSkipMissingCodepoints;
@@ -68,7 +67,6 @@ pub const Font = struct {
     ascent: i32,
     descent: i32,
     vert_adv: i32,
-    bounding_box: BoundingBox,
     key_mapping: ?HashMap(KeyMap, u21),
 };
 
@@ -170,9 +168,6 @@ pub const Agent = struct {
         const font_size = self.font_size;
         const scale = scale_for_mapping_em_to_pixels(&font_info, font_size);
 
-        var bounding_box: BoundingBox = .{};
-        get_font_bounding_box(&font_info, &bounding_box.start.x, &bounding_box.start.y, &bounding_box.end.x, &bounding_box.end.y);
-
         // TODO: Find a better way to figure out packing size. Maybe check if we failed packing and try again with a bigger array size.
         // TODO: Atlas size should be based on number of characters and the fontsize somehow
         const atlas_size = Point{ .x = 1024, .y = 1024 };
@@ -268,7 +263,6 @@ pub const Agent = struct {
             .packed_chars = packed_chars,
             .atlas = atlas,
             .atlas_size = atlas_size,
-            .bounding_box = bounding_box,
             .scale = scale,
             .ascent = ascent,
             .descent = descent,
